@@ -90,6 +90,7 @@ usr_packet_t userInputPackets[] = {
     {USR_IN_RESET,              "rS"}, 
 // place new input packet code here, before USR_IN_MAX
     {USR_IN_MAG_ALIGN,          "ma"},   // 0x6D 0x61
+    {USR_IN_GET_STATUS,         "gS"},
     {USR_IN_MAX,                {0xff, 0xff}},   //  "" 
 };
 
@@ -109,7 +110,6 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
     {USR_OUT_EKF3,              "e3"},
-    {USR_OUT_STATUS1,           "z2"},
     {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
 };
 
@@ -227,10 +227,6 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             _outputPacketType = type;
             _userPayloadLen   = USR_OUT_EKF3_PAYLOAD_LEN;
             break;
-        case USR_OUT_STATUS1: // packet with general status info
-            _outputPacketType = type;
-            _userPayloadLen   = USR_OUT_STATUS1_PAYLOAD_LEN;
-            break;
         default:
             result = FALSE;
             break;
@@ -332,6 +328,24 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                 valid = FALSE;
              }
              break;
+        case USR_IN_GET_STATUS:
+            {
+             // The payload length (NumOfBytes) is based on the following:
+             // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
+             // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
+             // =================================
+             //           NumOfBytes = 13 bytes
+
+             ptrUcbPacket->payloadLength = 13;
+             uint32_t *payload32 = (uint32_t*)(ptrUcbPacket->payload);
+             *payload32++ = gAlgorithm.itow;
+             *payload32++ = gAlgorithm.timeOfLastGoodGPSReading;
+             *payload32++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
+             *(uint8_t*)payload32 = gIMU.temp_C;
+             break;
+            }
         case USR_IN_MAG_ALIGN:
             // Set the valid flag true, if the command is not valid then
             //   it will be set false upon entry into case 0.
@@ -843,37 +857,6 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
             }
             break;
 
-        case USR_OUT_STATUS1:
-            {
-                // The payload length (NumOfBytes) is based on the following:
-                // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
-                // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
-                // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
-                // 1 uint32_t (4 byte)  =   4 bytes   status flags
-                // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
-                // =================================
-                //           NumOfBytes = 17 bytes
-                //
-                // Status flags are:
-                // (3 bit, LSB) Operation mode
-                // (1 bit) magnetometers used in algorithm
-                // (1 bit) gps used in algorithm - always 1
-                // (1 bit) whether GPS course is used as heading
-
-                uint8_t opMode;
-                EKF_GetOperationalMode(&opMode);
-
-                *payloadLen = USR_OUT_STATUS1_PAYLOAD_LEN;
-                uint32_t *algoData_1 = (uint32_t*)(payload);
-                *algoData_1++ = gAlgorithm.itow;
-                *algoData_1++ = gAlgorithm.timeOfLastGoodGPSReading;
-                *algoData_1++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
-                *algoData_1++ = opMode |
-                                (magUsedInAlgorithm() ? 1 : 0) << 3 |
-                                (gpsUsedInAlgorithm() ? 1 : 0) << 4 |
-                                (courseUsedAsHeadingInAlgorithm() ? 1 : 0) << 5;
-                *algoData_1++ = gIMU.temp_C;
-            }
         case USR_OUT_EKF3:
             {
                 // The payload length (NumOfBytes) is based on the following:
