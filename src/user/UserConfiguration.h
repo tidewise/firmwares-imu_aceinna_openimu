@@ -30,6 +30,13 @@ limitations under the License.
 /// User defined configuration strucrture
 ///Please notice, that parameters are 64 bit to accomodate double types as well as longer string types
 
+typedef enum {
+    ALGORITHM_USE_MAGNETOMETERS = 1,
+    ALGORITHM_USE_GPS = 2,
+    ALGORITHM_USE_GPS_COURSE_AS_HEADING = 4,
+    ALGORITHM_USE_ALL = 7
+} AlgorithmUsedSensors;
+
 typedef struct {
     uint64_t           dataCRC;             /// CRC of user configuration structure CRC-16
     uint64_t           dataSize;            /// Size of the user configuration structure 
@@ -95,6 +102,11 @@ typedef struct {
     float hardIron_Y;
     float softIron_Ratio;
     float softIron_Angle;
+
+    uint64_t        sensorsUsed;        /// Bitfield specifying which sensors can be used
+                                        /// 1=Magnetometers,
+                                        /// 2=GPS,
+                                        /// 4=GPS Course used for Heading
 } UserConfigurationStruct;
 
 typedef enum {
@@ -117,6 +129,7 @@ typedef enum {
     USER_HARD_IRON_Y                  ,
     USER_SOFT_IRON_RATIO              ,
     USER_SOFT_IRON_ANGLE              ,
+    USER_SENSORS_USED                 ,
     USER_MAX_PARAM
 } UserConfigParamNumber;
 
