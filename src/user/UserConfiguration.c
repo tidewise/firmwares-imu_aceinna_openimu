@@ -53,7 +53,8 @@ const UserConfigurationStruct gDefaultUserConfig = {
     .hardIron_X          = 0.0,
     .hardIron_Y          = 0.0,
     .softIron_Ratio      = 1.0,
-    .softIron_Angle      = 0.0
+    .softIron_Angle      = 0.0,
+    .sensorsUsed         = ALGORITHM_USE_ALL
 };
 
 UserConfigurationStruct gUserConfiguration;
@@ -79,6 +80,27 @@ void getUserMagAlignParams(magAlignUserParams_t *params)
     params->softIron_Angle = gUserConfiguration.softIron_Angle;
 }
 
+BOOL SetSensorsUsed(uint64_t flags, BOOL apply)
+{
+    if (!apply) {
+        enableMagInAlgorithm(flags & ALGORITHM_USE_MAGNETOMETERS ? 1 : 0);
+        enableGpsInAlgorithm(flags & ALGORITHM_USE_GPS ? 1 : 0);
+        enableCourseAsHeadingInAlgorithm(flags & ALGORITHM_USE_GPS_COURSE_AS_HEADING ? 1 : 0);
+    }
+    return TRUE;
+}
+
+uint64_t GetSensorsUsed()
+{
+    uint64_t flags = 0;
+    if (magUsedInAlgorithm())
+        flags |= ALGORITHM_USE_MAGNETOMETERS;
+    if (gpsUsedInAlgorithm())
+        flags |= ALGORITHM_USE_GPS;
+    if (courseUsedAsHeadingInAlgorithm())
+        flags |= ALGORITHM_USE_GPS_COURSE_AS_HEADING;
+    return flags;
+}
 
 void userInitConfigureUnit()
 {
@@ -209,6 +231,9 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
             break;
         case USER_GPS_PROTOCOL:        
             result = SetGpsProtocol((int) data, fApply);
+            break;
+        case USER_SENSORS_USED:
+            result = SetSensorsUsed((int) data, fApply);
             break;
         // case USER_XXX_OFFSET:  add function calls here if parameter XXXX
         //                        required be updated on the fly and/or validated

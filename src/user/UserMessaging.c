@@ -46,7 +46,7 @@ IMUDataStruct   gIMU;
 gpsDataStruct_t gGPS;
 
 // Version string
-char userVersionString[] = "INS 1.0.0";
+char userVersionString[] = "INS 1.0.0.TW";
 
 // for EKFOutputDataStruct
 #include "EKF_Algorithm.h"
@@ -90,6 +90,7 @@ usr_packet_t userInputPackets[] = {
     {USR_IN_RESET,              "rS"}, 
 // place new input packet code here, before USR_IN_MAX
     {USR_IN_MAG_ALIGN,          "ma"},   // 0x6D 0x61
+    {USR_IN_GET_STATUS,         "gS"},
     {USR_IN_MAX,                {0xff, 0xff}},   //  "" 
 };
 
@@ -108,6 +109,7 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_SCALED1,           "s1"},
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
+    {USR_OUT_EKF3,              "e3"},
     {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
 };
 
@@ -221,6 +223,10 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             _outputPacketType = type;
             _userPayloadLen   = USR_OUT_EKF2_PAYLOAD_LEN;
             break;
+        case USR_OUT_EKF3: // packet with EKF algorithm data
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_EKF3_PAYLOAD_LEN;
+            break;
         default:
             result = FALSE;
             break;
@@ -322,6 +328,24 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                 valid = FALSE;
              }
              break;
+        case USR_IN_GET_STATUS:
+            {
+             // The payload length (NumOfBytes) is based on the following:
+             // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
+             // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
+             // =================================
+             //           NumOfBytes = 13 bytes
+
+             ptrUcbPacket->payloadLength = 13;
+             uint32_t *payload32 = (uint32_t*)(ptrUcbPacket->payload);
+             *payload32++ = gAlgorithm.itow;
+             *payload32++ = gAlgorithm.timeOfLastGoodGPSReading;
+             *payload32++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
+             *(uint8_t*)payload32 = gIMU.temp_C;
+             break;
+            }
         case USR_IN_MAG_ALIGN:
             // Set the valid flag true, if the command is not valid then
             //   it will be set false upon entry into case 0.
@@ -832,6 +856,105 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
                 *algoData_5++ = turnSw;
             }
             break;
+
+        case USR_OUT_EKF3:
+            {
+                // The payload length (NumOfBytes) is based on the following:
+                // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+                // 3 floats (4 bytes)   =  12 bytes   euler angles r/p/y (deg)
+                // 3 floats (4 bytes)   =  12 bytes   euler angle covariances r/p/y (deg**2)
+                // 3 floats (4 bytes)   =  12 bytes   acceleration (g)
+                // 3 floats (4 bytes)   =  12 bytes   acceleration covariances (g**2)
+                // 3 floats (4 bytes)   =  12 bytes   angular velocities x/y/z (deg/s)
+                // 3 floats (4 bytes)   =  12 bytes   angular velocities covariance x/y/z ((deg/s)**2)
+                // 3 floats (4 bytes)   =  12 bytes   velocities n/e/d (m/s)
+                // 3 floats (4 bytes)   =  12 bytes   velocities n/e/d ((m/s)**2)
+                // 3 double (8 bytes)   =  24 bytes   lat/long/alt (deg/deg/m)
+                // 3 floats (4 bytes)   =  12 bytes   position covariance n/e/d (m**2)
+                // 1 uint8_t (1 byte)   =   1 bytes   status byte
+                // =================================
+                //           NumOfBytes = 137 bytes
+                //
+                // Status byte is
+                // 3 bit (LSB) - output mode
+                // 1 bit - Still
+                // 1 bit - turnSw
+                *payloadLen = USR_OUT_EKF3_PAYLOAD_LEN;
+
+                uint32_t *algoData_1 = (uint32_t*)(payload);
+                *algoData_1++ = gAlgorithm.itow;
+
+                // Set the pointer of the algoData array to the payload
+                double *algoData_2 = (double*)(algoData_1);
+
+                // Set the pointer of the algoData array to the payload
+                float *algoData_3 = (float*)(algoData_2);
+                real EulerAngles[NUM_AXIS];
+                EKF_GetAttitude_EA(EulerAngles);
+                *algoData_3++ = (float)EulerAngles[ROLL];
+                *algoData_3++ = (float)EulerAngles[PITCH];
+                *algoData_3++ = (float)EulerAngles[YAW];
+                *algoData_3++ = 0;
+                *algoData_3++ = 0;
+                *algoData_3++ = 0;
+
+                float accels[NUM_AXIS];
+                float accelsCov[NUM_AXIS];
+                EKF_GetCorrectedAccels(accels);
+                EKF_GetCorrectedAccelsCovariance(accelsCov);
+                *algoData_3++ = (float)accels[X_AXIS];
+                *algoData_3++ = (float)accels[Y_AXIS];
+                *algoData_3++ = (float)accels[Z_AXIS];
+                *algoData_3++ = (float)accelsCov[X_AXIS];
+                *algoData_3++ = (float)accelsCov[Y_AXIS];
+                *algoData_3++ = (float)accelsCov[Z_AXIS];
+
+                float rates[NUM_AXIS];
+                float ratesCov[NUM_AXIS];
+                EKF_GetCorrectedAngRates(rates);
+                EKF_GetCorrectedAngRatesCovariance(ratesCov);
+                *algoData_3++ = (float)rates[X_AXIS];
+                *algoData_3++ = (float)rates[Y_AXIS];
+                *algoData_3++ = (float)rates[Z_AXIS];
+                *algoData_3++ = (float)ratesCov[X_AXIS];
+                *algoData_3++ = (float)ratesCov[Y_AXIS];
+                *algoData_3++ = (float)ratesCov[Z_AXIS];
+
+                float vel[NUM_AXIS];
+                float velCov[NUM_AXIS];
+                EKF_GetEstimatedVelocity(vel);
+                EKF_GetEstimatedVelocityCovariance(velCov);
+                *algoData_3++ = (float)vel[X_AXIS];
+                *algoData_3++ = (float)vel[Y_AXIS];
+                *algoData_3++ = (float)vel[Z_AXIS];
+                *algoData_3++ = (float)velCov[X_AXIS];
+                *algoData_3++ = (float)velCov[Y_AXIS];
+                *algoData_3++ = (float)velCov[Z_AXIS];
+
+                // Set the pointer of the algoData array to the payload
+                double *algoData_4 = (double*)(algoData_3);
+                double lla[NUM_AXIS];
+                float posCov[NUM_AXIS];
+                EKF_GetEstimatedLLA(lla);
+                EKF_GetEstimatedPositionCovariance(posCov);
+                *algoData_4++ = (double)lla[LAT];
+                *algoData_4++ = (double)lla[LON];
+                *algoData_4++ = (double)lla[ALT];
+                float* algoData_5 = (float*)(algoData_4);
+                *algoData_5++ = (float)posCov[X_AXIS];
+                *algoData_5++ = (float)posCov[Y_AXIS];
+                *algoData_5++ = (float)posCov[Z_AXIS];
+
+                // Set the pointer of the algoData array to the payload
+                uint8_t *algoData_6 = (uint8_t*)(algoData_5);
+                uint8_t opMode, linAccelSw, turnSw, courseHeading;
+                EKF_GetOperationalMode(&opMode);
+                EKF_GetOperationalSwitches(&linAccelSw, &turnSw);
+                EKF_GetCourseUsedAsHeading(&courseHeading);
+                *algoData_6++ = opMode | linAccelSw << 3 | turnSw << 4 | courseHeading << 5;
+            }
+            break;
+
 
         default:
             {

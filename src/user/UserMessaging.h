@@ -69,6 +69,7 @@ typedef enum {
     USR_IN_RESET            ,
     // add new packet type here, before USR_IN_MAX
     USR_IN_MAG_ALIGN        ,
+    USR_IN_GET_STATUS  ,
     USR_IN_MAX
 } UserInPacketType;
 
@@ -83,6 +84,7 @@ typedef enum {
     USR_OUT_SCALED1,
     USR_OUT_EKF1,
     USR_OUT_EKF2,
+    USR_OUT_EKF3,
     USR_OUT_MAX
 } UserOutPacketType;
 
@@ -131,6 +133,7 @@ typedef struct {
 #define USR_OUT_SCALED1_PAYLOAD_LEN (52)
 #define USR_OUT_EKF1_PAYLOAD_LEN    (75)
 #define USR_OUT_EKF2_PAYLOAD_LEN    (123)
+#define USR_OUT_EKF3_PAYLOAD_LEN    (137)
 
 #define USER_OK      0x00
 #define USER_NAK     0x80

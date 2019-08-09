@@ -106,6 +106,7 @@ static void _InitAlgo(uint8_t algoType)
         gAlgorithm.Behavior.bit.stationaryLockYaw  = 0;
         gAlgorithm.Behavior.bit.restartOnOverRange = 0;
         gAlgorithm.Behavior.bit.dynamicMotion      = 1;
+        gAlgorithm.Behavior.bit.useCourseHeading   = 1;
 
         // Set the system configuration based on system type
         switch( algoType ) {
