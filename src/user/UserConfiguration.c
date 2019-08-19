@@ -41,7 +41,7 @@ limitations under the License.
 const UserConfigurationStruct gDefaultUserConfig = {
     .dataCRC             =  0,
     .dataSize            =  sizeof(UserConfigurationStruct),
-    .userUartBaudRate    =  115200,
+    .userUartBaudRate    =  57600,
     .userPacketType      =  "e2",
     .userPacketRate      =  20,
     .lpfAccelFilterFreq  =  25,
