@@ -332,18 +332,26 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
             {
              // The payload length (NumOfBytes) is based on the following:
              // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS message (ms)
              // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
              // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
+             // 1 uint32_t (4 bytes) =   4 bytes   number of bytes received on the GPS UART
+             // 1 uint16_t (2 bytes) =   2 bytes   number of overflows while parsing the GPS UART
              // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
              // =================================
-             //           NumOfBytes = 13 bytes
+             //           NumOfBytes = 23 bytes
 
-             ptrUcbPacket->payloadLength = 13;
-             uint32_t *payload32 = (uint32_t*)(ptrUcbPacket->payload);
-             *payload32++ = gAlgorithm.itow;
-             *payload32++ = gAlgorithm.timeOfLastGoodGPSReading;
-             *payload32++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
-             *(uint8_t*)payload32 = gIMU.temp_C;
+             ptrUcbPacket->payloadLength = 23;
+             uint32_t *payload32_0 = (uint32_t*)(ptrUcbPacket->payload);
+             *payload32_0++ = gAlgorithm.itow;
+             *payload32_0++ = GetLastReceivedGPS();
+             *payload32_0++ = gAlgorithm.timeOfLastGoodGPSReading;
+             *payload32_0++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
+             *payload32_0++ = GetGPSRXCounter();
+             uint16_t *payload16_1 = (uint16_t*)payload32_0;
+             *payload16_1++ = GetGPSOverflowCounter();
+             uint8_t *payload8_2 = (uint8_t*)payload16_1;
+             *payload8_2++ = gIMU.temp_C;
              break;
             }
         case USR_IN_MAG_ALIGN:
