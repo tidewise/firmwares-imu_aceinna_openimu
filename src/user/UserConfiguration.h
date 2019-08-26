@@ -98,10 +98,10 @@ typedef struct {
     // Add parameter offset in UserConfigParamOffset structure if validation or
     // special processing required 
 
-    float hardIron_X;
-    float hardIron_Y;
-    float softIron_Ratio;
-    float softIron_Angle;
+    double hardIron_X;
+    double hardIron_Y;
+    double softIron_Ratio;
+    double softIron_Angle;
 
     uint64_t        sensorsUsed;        /// Bitfield specifying which sensors can be used
                                         /// 1=Magnetometers,
