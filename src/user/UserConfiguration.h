@@ -33,7 +33,7 @@ limitations under the License.
 typedef enum {
     ALGORITHM_USE_MAGNETOMETERS = 1,
     ALGORITHM_USE_GPS = 2,
-    ALGORITHM_USE_GPS_COURSE_AS_HEADING = 4,
+    ALGORITHM_USE_COURSE_AS_HEADING = 4,
     ALGORITHM_USE_ALL = 7
 } AlgorithmUsedSensors;
 
@@ -103,7 +103,7 @@ typedef struct {
     double softIron_Ratio;
     double softIron_Angle;
 
-    uint64_t        sensorsUsed;        /// Bitfield specifying which sensors can be used
+    uint64_t        filterConfig;        /// Bitfield specifying which sensors can be used
                                         /// 1=Magnetometers,
                                         /// 2=GPS,
                                         /// 4=GPS Course used for Heading
@@ -129,7 +129,7 @@ typedef enum {
     USER_HARD_IRON_Y                  ,
     USER_SOFT_IRON_RATIO              ,
     USER_SOFT_IRON_ANGLE              ,
-    USER_SENSORS_USED                 ,
+    USER_FILTER_CONFIGURATION         ,
     USER_MAX_PARAM
 } UserConfigParamNumber;
 
