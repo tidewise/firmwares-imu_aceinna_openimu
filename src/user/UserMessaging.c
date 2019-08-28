@@ -238,9 +238,7 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
 
     tmp = (data[0] << 8) | data[1];
 
-    result = platformSetOutputPacketCode(tmp, fApply);
-
-    return result;
+    return platformSetOutputPacketCode(tmp, fApply);
 }
 
 
