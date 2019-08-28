@@ -37,6 +37,9 @@ typedef enum {
     ALGORITHM_USE_ALL = 7
 } AlgorithmUsedSensors;
 
+/** MUST BE MULTIPLE OF 8 */
+#define MAX_EXT_PERIODIC_PACKETS 16
+
 typedef struct {
     uint64_t           dataCRC;             /// CRC of user configuration structure CRC-16
     uint64_t           dataSize;            /// Size of the user configuration structure 
@@ -107,6 +110,8 @@ typedef struct {
                                         /// 1=Magnetometers,
                                         /// 2=GPS,
                                         /// 4=GPS Course used for Heading
+
+    uint8_t         extPeriodicPackets[MAX_EXT_PERIODIC_PACKETS];
 } UserConfigurationStruct;
 
 typedef enum {
@@ -130,7 +135,9 @@ typedef enum {
     USER_SOFT_IRON_RATIO              ,
     USER_SOFT_IRON_ANGLE              ,
     USER_FILTER_CONFIGURATION         ,
-    USER_MAX_PARAM
+    USER_EXT_PERIODIC_PACKET_START    ,
+    USER_EXT_PERIODIC_PACKET_END = USER_EXT_PERIODIC_PACKET_START + MAX_EXT_PERIODIC_PACKETS / 8,
+    USER_MAX_PARAM = USER_EXT_PERIODIC_PACKET_END
 } UserConfigParamNumber;
 
 #define MAX_SYSTEM_PARAM USER_ORIENTATION

@@ -46,7 +46,6 @@ typedef enum {
     PACKET_RATE_1HZ   = 1,       // packet rate 1  Hz
 } packet_rate_t;
 
-
 // User Input packet payload has next structure:
 // number      offset
 // of          of  first 
@@ -85,6 +84,8 @@ typedef enum {
     USR_OUT_EKF1,
     USR_OUT_EKF2,
     USR_OUT_EKF3,
+    USR_OUT_INFO1,
+    USR_OUT_EXT_PERIODIC,
     USR_OUT_MAX
 } UserOutPacketType;
 
@@ -94,6 +95,7 @@ typedef enum {
 typedef struct {
     uint8_t  packetPayload[252];    // maximum 252 bytes     
 } userPacket;
+#define MAX_PAYLOAD 252
 #define MAX_NUMBER_OF_USER_PARAMS_IN_THE_PACKET 30
 #define FIRST_30_PARAMS 0xFFFFFFFF
 
@@ -134,6 +136,8 @@ typedef struct {
 #define USR_OUT_EKF1_PAYLOAD_LEN    (75)
 #define USR_OUT_EKF2_PAYLOAD_LEN    (123)
 #define USR_OUT_EKF3_PAYLOAD_LEN    (137)
+#define USR_OUT_INFO1_PAYLOAD_LEN   (34)
+#define USR_OUT_EXT_PERIODIC_PAYLOAD_LEN (220)
 
 #define USER_OK      0x00
 #define USER_NAK     0x80
@@ -146,6 +150,7 @@ extern int       checkUserPacketType(uint16_t receivedCode);
 extern void      userPacketTypeToBytes(uint8_t bytes[]);
 extern void      WriteResultsIntoOutputStream(void *results);
 BOOL             setUserPacketType(uint8_t* type, BOOL fApply);
+void SetExtPacketPeriod(int type, uint8_t period);
 
 // IMU data structure
 typedef struct {

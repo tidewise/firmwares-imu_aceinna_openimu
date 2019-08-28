@@ -110,6 +110,8 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
     {USR_OUT_EKF3,              "e3"},
+    {USR_OUT_INFO1,             "i1"},
+    {USR_OUT_EXT_PERIODIC,      "EP"},
     {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
 };
 
@@ -118,8 +120,10 @@ static   int    _userPayloadLen = 0;
 static   int    _outputPacketType  = USR_OUT_MAX;
 static   int    _inputPacketType   = USR_IN_MAX;
 
+static   int    _lastReceivedCode;
+static   int    _lastReceivedPacketType = UCB_ERROR_INVALID_TYPE;
 
-int checkUserPacketType(uint16_t receivedCode)
+int resolveUserPacketType(uint16_t receivedCode)
 {
     int res     = UCB_ERROR_INVALID_TYPE;
     usr_packet_t *packet  = &userInputPackets[1];
@@ -150,8 +154,18 @@ int checkUserPacketType(uint16_t receivedCode)
     return res;
 }
 
+int checkUserPacketType(uint16_t receivedCode)
+{
+    if (receivedCode == _lastReceivedCode) {
+        return _lastReceivedPacketType;
+    }
 
-void   userPacketTypeToBytes(uint8_t bytes[])
+    _lastReceivedCode = receivedCode;
+    _lastReceivedPacketType = resolveUserPacketType(receivedCode);
+    return _lastReceivedPacketType;
+}
+
+void userPacketTypeToBytes(uint8_t bytes[])
 {
     if(_inputPacketType && _inputPacketType <  USR_IN_MAX){
         // response to request. Return same packet code
@@ -171,7 +185,6 @@ void   userPacketTypeToBytes(uint8_t bytes[])
     }
 
 }
-
 
 /** ***************************************************************************
  * @name setUserPacketType - set user output packet type 
@@ -227,6 +240,14 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             _outputPacketType = type;
             _userPayloadLen   = USR_OUT_EKF3_PAYLOAD_LEN;
             break;
+        case USR_OUT_INFO1:
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_INFO1_PAYLOAD_LEN;
+            break;
+        case USR_OUT_EXT_PERIODIC:
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_EXT_PERIODIC_PAYLOAD_LEN;
+            break;
         default:
             result = FALSE;
             break;
@@ -237,8 +258,9 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
     }
 
     tmp = (data[0] << 8) | data[1];
+    BOOL ret = platformSetOutputPacketCode(tmp, fApply);
 
-    return platformSetOutputPacketCode(tmp, fApply);
+    return ret;
 }
 
 
@@ -253,6 +275,8 @@ int getUserPayloadLength(void)
     // ATTENTION: return actual user payload length, if user packet used    
     return _userPayloadLen;
 }
+
+void FillStatusPayload(uint8_t* payload, uint8_t* payloadLen);
 
 /******************************************************************************
  * @name HandleUserInputPacket - API
@@ -328,29 +352,8 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
              break;
         case USR_IN_GET_STATUS:
             {
-             // The payload length (NumOfBytes) is based on the following:
-             // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS message (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   number of bytes received on the GPS UART
-             // 1 uint16_t (2 bytes) =   2 bytes   number of overflows while parsing the GPS UART
-             // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
-             // =================================
-             //           NumOfBytes = 23 bytes
-
-             ptrUcbPacket->payloadLength = 23;
-             uint32_t *payload32_0 = (uint32_t*)(ptrUcbPacket->payload);
-             *payload32_0++ = gAlgorithm.itow;
-             *payload32_0++ = GetLastReceivedGPS();
-             *payload32_0++ = gAlgorithm.timeOfLastGoodGPSReading;
-             *payload32_0++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
-             *payload32_0++ = GetGPSRXCounter();
-             uint16_t *payload16_1 = (uint16_t*)payload32_0;
-             *payload16_1++ = GetGPSOverflowCounter();
-             uint8_t *payload8_2 = (uint8_t*)payload16_1;
-             *payload8_2++ = gIMU.temp_C;
-             break;
+                FillStatusPayload(ptrUcbPacket->payload, &(ptrUcbPacket->payloadLength));
+                break;
             }
         case USR_IN_MAG_ALIGN:
             // Set the valid flag true, if the command is not valid then
@@ -500,6 +503,54 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
         return ret;
 }
 
+static uint32_t extPeriodicPacketOverflow;
+static uint8_t extPeriodicPacketWait[MAX_EXT_PERIODIC_PACKETS];
+static uint8_t extPeriodicPacketPeriod[MAX_EXT_PERIODIC_PACKETS];
+
+void SetExtPacketPeriod(int type, uint8_t period) {
+    extPeriodicPacketPeriod[type] = period;
+    extPeriodicPacketWait[type] = period;
+}
+
+void FillStatusPayload(uint8_t* payload, uint8_t* payloadLen) {
+    // The payload length (NumOfBytes) is based on the following:
+    // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   Extended periodic packet overflows
+    // 1 uint32_t (4 bytes) =   4 bytes   GPS update count
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS message (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   number of bytes received on the GPS UART
+    // 1 uint16_t (2 bytes) =   2 bytes   number of overflows while parsing the GPS UART
+    // 1 uint16_t (2 bytes) =   2 bytes   HDOP (0.1 scaling)
+    // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
+    // 1 uint8_t  (1 byte)  =   1 bytes   flags
+    // =================================
+    //           NumOfBytes = 34 bytes
+
+    uint32_t *payload32_0 = (uint32_t*)(payload);
+    *payload32_0++ = gAlgorithm.itow;
+    *payload32_0++ = extPeriodicPacketOverflow;
+    *payload32_0++ = GetGPSUpdateCount();
+    *payload32_0++ = GetLastReceivedGPS();
+    *payload32_0++ = gAlgorithm.timeOfLastGoodGPSReading;
+    *payload32_0++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
+    *payload32_0++ = GetGPSRXCounter();
+    uint16_t *payload16_1 = (uint16_t*)payload32_0;
+    *payload16_1++ = GetGPSOverflowCounter();
+    *payload16_1++ = GetGPSHDOP() * 10;
+    uint8_t *payload8_2 = (uint8_t*)payload16_1;
+    *payload8_2++ = gIMU.temp_C;
+
+    uint8_t opMode, linAccelSw, turnSw, courseHeading;
+    EKF_GetOperationalMode(&opMode);
+    EKF_GetOperationalSwitches(&linAccelSw, &turnSw);
+    EKF_GetCourseUsedAsHeading(&courseHeading);
+    *payload8_2++ = opMode | linAccelSw << 3 | turnSw << 4 | courseHeading << 5;
+    *payloadLen = USR_OUT_INFO1_PAYLOAD_LEN;
+}
+
+BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen);
 
 /******************************************************************************
  * @name HandleUserOutputPacket - API call ro prepare continuous user output packet
@@ -510,18 +561,45 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
  ******************************************************************************/
 BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
 {
-    static uint32_t _testVal = 0;
+    if (_outputPacketType != USR_OUT_EXT_PERIODIC) {
+        return FillPayloadWithPacket(_outputPacketType, payload, payloadLen);
+    }
+
+    *payloadLen = 0;
+    for (int i = 0; i < MAX_EXT_PERIODIC_PACKETS; ++i) {
+        if (extPeriodicPacketWait[i] == 0 || --extPeriodicPacketWait[i] > 0) {
+            continue;
+        }
+
+        int payloadRemaining = USR_OUT_EXT_PERIODIC_PAYLOAD_LEN - *payloadLen;
+        uint8_t tempPayload[MAX_PAYLOAD];
+        uint8_t tempPayloadLen;
+        FillPayloadWithPacket(i, tempPayload, &tempPayloadLen);
+        if (payloadRemaining > tempPayloadLen + 3) {
+            extPeriodicPacketWait[i] = extPeriodicPacketPeriod[i];
+            uint8_t const* packetCode = userOutputPackets[i].packetCode;
+            payload[*payloadLen] = packetCode[0];
+            payload[*payloadLen + 1] = packetCode[1];
+            payload[*payloadLen + 2] = tempPayloadLen;
+            memcpy(payload + *payloadLen + 3, tempPayload, tempPayloadLen);
+            *payloadLen += tempPayloadLen + 3;
+        }
+        else {
+            // Too much data needs to be sent this cycle ... try to send the
+            // next cycle
+            extPeriodicPacketWait[i] = 1;
+            extPeriodicPacketOverflow++;
+        }
+    }
+
+    return *payloadLen != 0;
+}
+
+BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
+{
     BOOL ret = TRUE;
 
-	switch (_outputPacketType) {
-        case USR_OUT_TEST:
-            {
-                uint32_t *testParam = (uint32_t*)(payload);
-                *payloadLen = USR_OUT_TEST_PAYLOAD_LEN;
-                *testParam  = _testVal++;
-            }
-            break;
-
+	switch (type) {
         case USR_OUT_DATA1:
             {
                 int n = 0;
@@ -961,6 +1039,9 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
             }
             break;
 
+        case USR_OUT_INFO1:
+            FillStatusPayload(payload, payloadLen);
+            break;
 
         default:
             {

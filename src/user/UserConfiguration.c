@@ -239,8 +239,14 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
         //                        required be updated on the fly and/or validated
         //             break;
         default:
-            // by default result should be true if there is no special
-            // consideration or criteria for parameter validity
+            if (fApply && number >= USER_EXT_PERIODIC_PACKET_START &&
+                number < USER_EXT_PERIODIC_PACKET_END) {
+                uint8_t offset = (number - USER_EXT_PERIODIC_PACKET_START) * 8;
+                uint8_t* periods = (uint8_t*)&data;
+                for (int i = 0; i < offset; ++i) {
+                    SetExtPacketPeriod(offset + i, periods[i]);
+                }
+            }
             result = TRUE;
             break;
     }
