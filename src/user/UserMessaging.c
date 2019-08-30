@@ -122,6 +122,8 @@ static   int    _inputPacketType   = USR_IN_MAX;
 
 static   int    _lastReceivedCode;
 static   int    _lastReceivedPacketType = UCB_ERROR_INVALID_TYPE;
+static   int    _lastOutputPacketType  = USR_OUT_MAX;
+static   int    _lastInputPacketType   = USR_IN_MAX;
 
 int resolveUserPacketType(uint16_t receivedCode)
 {
@@ -157,11 +159,19 @@ int resolveUserPacketType(uint16_t receivedCode)
 int checkUserPacketType(uint16_t receivedCode)
 {
     if (receivedCode == _lastReceivedCode) {
+        if (_lastReceivedPacketType == UCB_USER_IN) {
+            _inputPacketType = _lastInputPacketType;
+        }
+        else {
+            _outputPacketType = _lastOutputPacketType;
+        }
         return _lastReceivedPacketType;
     }
 
     _lastReceivedCode = receivedCode;
     _lastReceivedPacketType = resolveUserPacketType(receivedCode);
+    _lastInputPacketType = _inputPacketType;
+    _lastOutputPacketType = _outputPacketType;
     return _lastReceivedPacketType;
 }
 
