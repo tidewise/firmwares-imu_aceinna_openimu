@@ -66,51 +66,53 @@ EKF_OutputDataStruct *algo_res;
 //              55 55 6D 61 01 08 70 26
 //              55 55 6D 61 01 09 60 07
 //              55 55 6D 61 01 0A 50 64
-//              55 55 6D 61 01 0B 
-//              55 55 6D 61 01 0C 
-//              55 55 6D 61 01 0D 
+//              55 55 6D 61 01 0B
+//              55 55 6D 61 01 0C
+//              55 55 6D 61 01 0D
 //              55 55 6D 61 01 0E 10 E0
-//              55 55 6D 61 01 0F 
+//              55 55 6D 61 01 0F
 
 //  other: 55 55 ...
 
-/// List of allowed packet codes 
+/// List of allowed packet codes
 usr_packet_t userInputPackets[] = {
     {USR_IN_NONE,               {0,0}},
-    {USR_IN_PING,               "pG"}, 
-    {USR_IN_UPDATE_CONFIG,      "uC"}, 
-    {USR_IN_UPDATE_PARAM,       "uP"}, 
-    {USR_IN_UPDATE_ALL,         "uA"}, 
-    {USR_IN_SAVE_CONFIG,        "sC"}, 
-    {USR_IN_RESTORE_DEFAULTS,   "rD"}, 
-    {USR_IN_GET_CONFIG,         "gC"}, 
-    {USR_IN_GET_PARAM,          "gP"}, 
-    {USR_IN_GET_ALL,            "gA"}, 
-    {USR_IN_GET_VERSION,        "gV"}, 
-    {USR_IN_RESET,              "rS"}, 
+    {USR_IN_PING,               "pG"},
+    {USR_IN_UPDATE_CONFIG,      "uC"},
+    {USR_IN_UPDATE_PARAM,       "uP"},
+    {USR_IN_UPDATE_ALL,         "uA"},
+    {USR_IN_SAVE_CONFIG,        "sC"},
+    {USR_IN_RESTORE_DEFAULTS,   "rD"},
+    {USR_IN_GET_CONFIG,         "gC"},
+    {USR_IN_GET_PARAM,          "gP"},
+    {USR_IN_GET_ALL,            "gA"},
+    {USR_IN_GET_VERSION,        "gV"},
+    {USR_IN_RESET,              "rS"},
 // place new input packet code here, before USR_IN_MAX
     {USR_IN_MAG_ALIGN,          "ma"},   // 0x6D 0x61
     {USR_IN_GET_STATUS,         "gS"},
-    {USR_IN_MAX,                {0xff, 0xff}},   //  "" 
+    {USR_IN_MAX,                {0xff, 0xff}},   //  ""
 };
 
 
-// packet codes here should be unique - 
+// packet codes here should be unique -
 // should not overlap codes for input packets and system packets
-// First byte of Packet code should have value  >= 0x61  
-usr_packet_t userOutputPackets[] = {	
+// First byte of Packet code should have value  >= 0x61
+usr_packet_t userOutputPackets[] = {
 //   Packet Type                Packet Code
-    {USR_OUT_NONE,              {0x00, 0x00}}, 
-    {USR_OUT_TEST,              "zT"},   
-    {USR_OUT_DATA1,             "z1"},   
-    {USR_OUT_ANG1,              "a1"},   
-    {USR_OUT_ANG2,              "a2"},   
+    {USR_OUT_NONE,              {0x00, 0x00}},
+    {USR_OUT_TEST,              "zT"},
+    {USR_OUT_DATA1,             "z1"},
+    {USR_OUT_ANG1,              "a1"},
+    {USR_OUT_ANG2,              "a2"},
 // place new type and code here
     {USR_OUT_SCALED1,           "s1"},
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
     {USR_OUT_EKF3,              "e3"},
-    {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
+    {USR_OUT_INFO1,             "i1"},
+    {USR_OUT_EXT_PERIODIC,      "EP"},
+    {USR_OUT_MAX,               {0xff, 0xff}},   //  ""
 };
 
 volatile char   *info;
@@ -118,8 +120,12 @@ static   int    _userPayloadLen = 0;
 static   int    _outputPacketType  = USR_OUT_MAX;
 static   int    _inputPacketType   = USR_IN_MAX;
 
+static   int    _lastReceivedCode;
+static   int    _lastReceivedPacketType = UCB_ERROR_INVALID_TYPE;
+static   int    _lastOutputPacketType  = USR_OUT_MAX;
+static   int    _lastInputPacketType   = USR_IN_MAX;
 
-int checkUserPacketType(uint16_t receivedCode)
+int resolveUserPacketType(uint16_t receivedCode)
 {
     int res     = UCB_ERROR_INVALID_TYPE;
     usr_packet_t *packet  = &userInputPackets[1];
@@ -136,7 +142,7 @@ int checkUserPacketType(uint16_t receivedCode)
     }
 
     packet  = &userOutputPackets[1];
-    
+
     // validate packet code here and memorize for further processing
     while(packet->packetType != USR_OUT_MAX){
         code = (packet->packetCode[0] << 8) | packet->packetCode[1];
@@ -150,8 +156,26 @@ int checkUserPacketType(uint16_t receivedCode)
     return res;
 }
 
+int checkUserPacketType(uint16_t receivedCode)
+{
+    if (receivedCode == _lastReceivedCode) {
+        if (_lastReceivedPacketType == UCB_USER_IN) {
+            _inputPacketType = _lastInputPacketType;
+        }
+        else {
+            _outputPacketType = _lastOutputPacketType;
+        }
+        return _lastReceivedPacketType;
+    }
 
-void   userPacketTypeToBytes(uint8_t bytes[])
+    _lastReceivedCode = receivedCode;
+    _lastReceivedPacketType = resolveUserPacketType(receivedCode);
+    _lastInputPacketType = _inputPacketType;
+    _lastOutputPacketType = _outputPacketType;
+    return _lastReceivedPacketType;
+}
+
+void userPacketTypeToBytes(uint8_t bytes[])
 {
     if(_inputPacketType && _inputPacketType <  USR_IN_MAX){
         // response to request. Return same packet code
@@ -160,7 +184,7 @@ void   userPacketTypeToBytes(uint8_t bytes[])
         _inputPacketType = USR_IN_MAX;  // wait for next input packet
         return;
     }
-    
+
     if(_outputPacketType && _outputPacketType < USR_OUT_MAX){
         // continuous packet
         bytes[0] = userOutputPackets[_outputPacketType].packetCode[0];
@@ -172,9 +196,8 @@ void   userPacketTypeToBytes(uint8_t bytes[])
 
 }
 
-
 /** ***************************************************************************
- * @name setUserPacketType - set user output packet type 
+ * @name setUserPacketType - set user output packet type
  * @brief
  * @param [in] packet type
  * @retval  - TRUE if success, FALSE otherwise
@@ -227,6 +250,14 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             _outputPacketType = type;
             _userPayloadLen   = USR_OUT_EKF3_PAYLOAD_LEN;
             break;
+        case USR_OUT_INFO1:
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_INFO1_PAYLOAD_LEN;
+            break;
+        case USR_OUT_EXT_PERIODIC:
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_EXT_PERIODIC_PAYLOAD_LEN;
+            break;
         default:
             result = FALSE;
             break;
@@ -237,24 +268,25 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
     }
 
     tmp = (data[0] << 8) | data[1];
+    BOOL ret = platformSetOutputPacketCode(tmp, fApply);
 
-    result = platformSetOutputPacketCode(tmp, fApply);
-
-    return result;
+    return ret;
 }
 
 
 /** ***************************************************************************
- * @name getUserPayloadLength - get user payload length for sanity check 
+ * @name getUserPayloadLength - get user payload length for sanity check
  * @brief
  *
  * @retval  - user payload length
  ******************************************************************************/
 int getUserPayloadLength(void)
 {
-    // ATTENTION: return actual user payload length, if user packet used    
+    // ATTENTION: return actual user payload length, if user packet used
     return _userPayloadLen;
 }
+
+void FillStatusPayload(uint8_t* payload, uint8_t* payloadLen);
 
 /******************************************************************************
  * @name HandleUserInputPacket - API
@@ -266,7 +298,7 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
 {
     BOOL valid = TRUE;
     int ret = USER_PACKET_OK;
-    
+
     uint8_t retVal;
     int8_t estimatedMagAlignVals[8] = {0};
     int8_t magAlignVals[8]          = {0};
@@ -274,11 +306,11 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
 //    userPacket *pkt =  (userPacket *)ptrUcbPacket->payload;
 
     /// call appropriate function based on packet type
-	switch (_inputPacketType) {
-		case USR_IN_RESET:
+    switch (_inputPacketType) {
+        case USR_IN_RESET:
             Reset();
             break;
-		case USR_IN_PING:
+        case USR_IN_PING:
             {
                 int len;
                 uint8_t *model = (uint8_t*)unitVersionString();
@@ -289,25 +321,25 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
             }
             // leave all the same - it will be bounced back unchanged
             break;
-		case USR_IN_GET_VERSION:
+        case USR_IN_GET_VERSION:
             {
                 int len = snprintf((char*)ptrUcbPacket->payload, 250, "%s", userVersionString );
                 ptrUcbPacket->payloadLength = len;
             }
             break;
-		case USR_IN_SAVE_CONFIG:
+        case USR_IN_SAVE_CONFIG:
             // payload length does not change
              if(!SaveUserConfig()){
                 valid = FALSE;
              }
              break;
-		case USR_IN_UPDATE_CONFIG:
+        case USR_IN_UPDATE_CONFIG:
              UpdateUserConfig((userConfigPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
-		case USR_IN_UPDATE_PARAM:
+        case USR_IN_UPDATE_PARAM:
              UpdateUserParam((userParamPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
-		case USR_IN_UPDATE_ALL:
+        case USR_IN_UPDATE_ALL:
              UpdateAllUserParams((allUserParamsPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
         case USR_IN_RESTORE_DEFAULTS:
@@ -330,29 +362,8 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
              break;
         case USR_IN_GET_STATUS:
             {
-             // The payload length (NumOfBytes) is based on the following:
-             // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS message (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
-             // 1 uint32_t (4 bytes) =   4 bytes   number of bytes received on the GPS UART
-             // 1 uint16_t (2 bytes) =   2 bytes   number of overflows while parsing the GPS UART
-             // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
-             // =================================
-             //           NumOfBytes = 23 bytes
-
-             ptrUcbPacket->payloadLength = 23;
-             uint32_t *payload32_0 = (uint32_t*)(ptrUcbPacket->payload);
-             *payload32_0++ = gAlgorithm.itow;
-             *payload32_0++ = GetLastReceivedGPS();
-             *payload32_0++ = gAlgorithm.timeOfLastGoodGPSReading;
-             *payload32_0++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
-             *payload32_0++ = GetGPSRXCounter();
-             uint16_t *payload16_1 = (uint16_t*)payload32_0;
-             *payload16_1++ = GetGPSOverflowCounter();
-             uint8_t *payload8_2 = (uint8_t*)payload16_1;
-             *payload8_2++ = gIMU.temp_C;
-             break;
+                FillStatusPayload(ptrUcbPacket->payload, &(ptrUcbPacket->payloadLength));
+                break;
             }
         case USR_IN_MAG_ALIGN:
             // Set the valid flag true, if the command is not valid then
@@ -406,7 +417,7 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                     gMagAlign.estParams.softIronScaleRatio   = 0.98;
                     gMagAlign.estParams.softIronAngle        = -270.0 * DEG_TO_RAD;
 #endif
-                
+
                     // Bias can be +/- 8.0 [g] (full scale of sensor)
                     //   SF = 2^15 / maxVal = 2^15 / 8.0 = 4096
                     magAlignVals[0] = (char)( ( (int16_t)( gMagAlign.hardIronBias[X_AXIS] * (float)4096.0 ) >> 8 ) & 0xFF );
@@ -459,21 +470,21 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                     DebugPrintEndline();
 #endif
 
-                    len = snprintf((char*)ptrUcbPacket->payload, 250, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", (char)magAlignVals[0], 
-                                                                                                          (char)magAlignVals[1], 
-                                                                                                          (char)magAlignVals[2], 
-                                                                                                          (char)magAlignVals[3], 
-                                                                                                          (char)magAlignVals[4], 
-                                                                                                          (char)magAlignVals[5], 
-                                                                                                          (char)magAlignVals[6], 
+                    len = snprintf((char*)ptrUcbPacket->payload, 250, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", (char)magAlignVals[0],
+                                                                                                          (char)magAlignVals[1],
+                                                                                                          (char)magAlignVals[2],
+                                                                                                          (char)magAlignVals[3],
+                                                                                                          (char)magAlignVals[4],
+                                                                                                          (char)magAlignVals[5],
+                                                                                                          (char)magAlignVals[6],
                                                                                                           (char)magAlignVals[7],
-                                                                                                          (char)estimatedMagAlignVals[0], 
-                                                                                                          (char)estimatedMagAlignVals[1], 
-                                                                                                          (char)estimatedMagAlignVals[2], 
-                                                                                                          (char)estimatedMagAlignVals[3], 
-                                                                                                          (char)estimatedMagAlignVals[4], 
-                                                                                                          (char)estimatedMagAlignVals[5], 
-                                                                                                          (char)estimatedMagAlignVals[6], 
+                                                                                                          (char)estimatedMagAlignVals[0],
+                                                                                                          (char)estimatedMagAlignVals[1],
+                                                                                                          (char)estimatedMagAlignVals[2],
+                                                                                                          (char)estimatedMagAlignVals[3],
+                                                                                                          (char)estimatedMagAlignVals[4],
+                                                                                                          (char)estimatedMagAlignVals[5],
+                                                                                                          (char)estimatedMagAlignVals[6],
                                                                                                           (char)estimatedMagAlignVals[7] );
                     ptrUcbPacket->payloadLength = len;
                     break;
@@ -498,10 +509,58 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
         }
 
         ptrUcbPacket->packetType = UCB_USER_OUT;    // do not remove - done for proper packet routing
-        
+
         return ret;
 }
 
+static uint32_t extPeriodicPacketOverflow;
+static uint8_t extPeriodicPacketWait[MAX_EXT_PERIODIC_PACKETS];
+static uint8_t extPeriodicPacketPeriod[MAX_EXT_PERIODIC_PACKETS];
+
+void SetExtPacketPeriod(int type, uint8_t period) {
+    extPeriodicPacketPeriod[type] = period;
+    extPeriodicPacketWait[type] = period;
+}
+
+void FillStatusPayload(uint8_t* payload, uint8_t* payloadLen) {
+    // The payload length (NumOfBytes) is based on the following:
+    // 1 uint32_t (4 bytes) =   4 bytes   GPS time of week (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   Extended periodic packet overflows
+    // 1 uint32_t (4 bytes) =   4 bytes   GPS update count
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS message (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS position (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   time at last valid GPS velocity (ms)
+    // 1 uint32_t (4 bytes) =   4 bytes   number of bytes received on the GPS UART
+    // 1 uint16_t (2 bytes) =   2 bytes   number of overflows while parsing the GPS UART
+    // 1 uint16_t (2 bytes) =   2 bytes   HDOP (0.1 scaling)
+    // 1 uint8_t  (1 byte)  =   1 bytes   temperature (C)
+    // 1 uint8_t  (1 byte)  =   1 bytes   flags
+    // =================================
+    //           NumOfBytes = 34 bytes
+
+    uint32_t *payload32_0 = (uint32_t*)(payload);
+    *payload32_0++ = gAlgorithm.itow;
+    *payload32_0++ = extPeriodicPacketOverflow;
+    *payload32_0++ = GetGPSUpdateCount();
+    *payload32_0++ = GetLastReceivedGPS();
+    *payload32_0++ = gAlgorithm.timeOfLastGoodGPSReading;
+    *payload32_0++ = gAlgorithm.timeOfLastSufficientGPSVelocity;
+    *payload32_0++ = GetGPSRXCounter();
+    uint16_t *payload16_1 = (uint16_t*)payload32_0;
+    *payload16_1++ = GetGPSOverflowCounter();
+    *payload16_1++ = GetGPSHDOP() * 10;
+    uint8_t *payload8_2 = (uint8_t*)payload16_1;
+    *payload8_2++ = gIMU.temp_C;
+
+    uint8_t opMode, linAccelSw, turnSw, courseHeading;
+    EKF_GetOperationalMode(&opMode);
+    EKF_GetOperationalSwitches(&linAccelSw, &turnSw);
+    EKF_GetCourseUsedAsHeading(&courseHeading);
+    *payload8_2++ = opMode | linAccelSw << 3 | turnSw << 4 | courseHeading << 5;
+    *payloadLen = USR_OUT_INFO1_PAYLOAD_LEN;
+}
+
+BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen);
 
 /******************************************************************************
  * @name HandleUserOutputPacket - API call ro prepare continuous user output packet
@@ -512,18 +571,45 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
  ******************************************************************************/
 BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
 {
-    static uint32_t _testVal = 0;
+    if (_outputPacketType != USR_OUT_EXT_PERIODIC) {
+        return FillPayloadWithPacket(_outputPacketType, payload, payloadLen);
+    }
+
+    *payloadLen = 0;
+    for (int i = 0; i < MAX_EXT_PERIODIC_PACKETS; ++i) {
+        if (extPeriodicPacketWait[i] == 0 || --extPeriodicPacketWait[i] > 0) {
+            continue;
+        }
+
+        int payloadRemaining = USR_OUT_EXT_PERIODIC_PAYLOAD_LEN - *payloadLen;
+        uint8_t tempPayload[MAX_PAYLOAD];
+        uint8_t tempPayloadLen;
+        FillPayloadWithPacket(i, tempPayload, &tempPayloadLen);
+        if (payloadRemaining > tempPayloadLen + 3) {
+            extPeriodicPacketWait[i] = extPeriodicPacketPeriod[i];
+            uint8_t const* packetCode = userOutputPackets[i].packetCode;
+            payload[*payloadLen] = packetCode[0];
+            payload[*payloadLen + 1] = packetCode[1];
+            payload[*payloadLen + 2] = tempPayloadLen;
+            memcpy(payload + *payloadLen + 3, tempPayload, tempPayloadLen);
+            *payloadLen += tempPayloadLen + 3;
+        }
+        else {
+            // Too much data needs to be sent this cycle ... try to send the
+            // next cycle
+            extPeriodicPacketWait[i] = 1;
+            extPeriodicPacketOverflow++;
+        }
+    }
+
+    return *payloadLen != 0;
+}
+
+BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
+{
     BOOL ret = TRUE;
 
-	switch (_outputPacketType) {
-        case USR_OUT_TEST:
-            {
-                uint32_t *testParam = (uint32_t*)(payload);
-                *payloadLen = USR_OUT_TEST_PAYLOAD_LEN;
-                *testParam  = _testVal++;
-            }
-            break;
-
+    switch (type) {
         case USR_OUT_DATA1:
             {
                 int n = 0;
@@ -547,7 +633,7 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
                 }
                 *payloadLen = sizeof(data1_payload_t);
             }
-			break;
+            break;
 
         case USR_OUT_ANG1:
             {
@@ -570,7 +656,7 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
                 //             NumOfBytes = 47 bytes
                 *payloadLen = USR_OUT_ANG1_PAYLOAD_LEN;
 
-                // Output time as reprented by gAlgorithm.itow (uint32_t 
+                // Output time as reprented by gAlgorithm.itow (uint32_t
                 //   incremented at each call of the algorithm)
                 uint32_t *algoData_1 = (uint32_t*)(payload);
                 *algoData_1++ = gAlgorithm.itow;
@@ -633,7 +719,7 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
                 //timerCount = TIM5->CNT;
                 //algoData[n++] = *ptr;
 
-                //ptr = 
+                //ptr =
 
                 n = 0;
                 algoData[n++] = 0.0;   // *ptr;
@@ -699,7 +785,7 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
         // place additional user packet preparing calls here
         // case USR_OUT_XXXX:
         //      *payloadLen = YYYY; // total user payload length, including user packet type
-        //      payload[0]  = ZZZZ; // user packet type 
+        //      payload[0]  = ZZZZ; // user packet type
         //      prepare dada here
         //      break;
         case USR_OUT_EKF1:
@@ -963,6 +1049,9 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
             }
             break;
 
+        case USR_OUT_INFO1:
+            FillStatusPayload(payload, payloadLen);
+            break;
 
         default:
             {
@@ -978,6 +1067,6 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
 
 void WriteResultsIntoOutputStream(void *results)
 {
-//  implement specific data processing/saving here 
+//  implement specific data processing/saving here
     algo_res = results;
 }

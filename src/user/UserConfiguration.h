@@ -37,11 +37,14 @@ typedef enum {
     ALGORITHM_USE_ALL = 7
 } AlgorithmUsedSensors;
 
+/** MUST BE MULTIPLE OF 8 */
+#define MAX_EXT_PERIODIC_PACKETS 16
+
 typedef struct {
     uint64_t           dataCRC;             /// CRC of user configuration structure CRC-16
-    uint64_t           dataSize;            /// Size of the user configuration structure 
-    
-    int64_t            userUartBaudRate;    /// baudrate of user UART, bps. 
+    uint64_t           dataSize;            /// Size of the user configuration structure
+
+    int64_t            userUartBaudRate;    /// baudrate of user UART, bps.
                                             /// valid options are:
                                             /// 4800
                                             /// 9600
@@ -54,12 +57,12 @@ typedef struct {
     uint8_t            userPacketType[8];   /// User packet to be continiously sent by unit
                                             /// Packet types defined in structure UserOutPacketType
                                             /// in file UserMessaging.h
-                                            
-    int64_t            userPacketRate;      /// Packet rate for continiously output packet, Hz.
-                                            /// Valid settings are: 0 ,2, 5, 10, 20, 25, 50, 100, 200 
 
-    int64_t            lpfAccelFilterFreq;  /// built-in lpf filter cutoff frequency selection for accelerometers   
-    int64_t            lpfRateFilterFreq;   /// built-in lpf filter cutoff frequency selection for rate sensors   
+    int64_t            userPacketRate;      /// Packet rate for continiously output packet, Hz.
+                                            /// Valid settings are: 0 ,2, 5, 10, 20, 25, 50, 100, 200
+
+    int64_t            lpfAccelFilterFreq;  /// built-in lpf filter cutoff frequency selection for accelerometers
+    int64_t            lpfRateFilterFreq;   /// built-in lpf filter cutoff frequency selection for rate sensors
                                             /// Options are:
                                             /// 0  -  Filter turned off
                                             /// 50 -  Butterworth LPF 50HZ
@@ -69,18 +72,18 @@ typedef struct {
                                             /// 02 -  Butterworth LPF 2HZ
                                             /// 25 -  Butterworth LPF 25HZ
                                             /// 40 -  Butterworth LPF 40HZ
-    
+
     uint8_t           orientation[8];         /// unit orientation in format 0x0000000000ddrrff
                                             /// where   dd - down axis, rr - right axis, ff - forward axis
-                                            /// next axis values a valid :  
+                                            /// next axis values a valid :
                                             /// 'X' (0x58) -> plus  X, 'Y' (0x59) -> plus Y,  'Z' (0x5a) -> plus Z
                                             /// 'x' (0x78) -> minus X, 'y' (0x79) -> minus Y, 'z' (0x7a) ->minusZ
-    
+
     //***************************************************************************************
     // here is the border between arbitrary parameters and platform configuration parameters
     //***************************************************************************************
 
-    int64_t          gpsBaudRate;           /// baudrate of GPS UART, bps. 
+    int64_t          gpsBaudRate;           /// baudrate of GPS UART, bps.
                                             /// valid options are:
                                             /// 4800
                                             /// 9600
@@ -89,14 +92,14 @@ typedef struct {
                                             /// 57600
                                             /// 115200
                                             /// 230400
-    int64_t          gpsProtocol;           /// protocol of GPS receicer. 
+    int64_t          gpsProtocol;           /// protocol of GPS receicer.
                                             /// so far valid options are:
                                             /// NMEA_TEXT
                                             /// NOVATEL_BINARY
     // place new arbitrary configuration parameters here
     // parameter size should even to 4 bytes
     // Add parameter offset in UserConfigParamOffset structure if validation or
-    // special processing required 
+    // special processing required
 
     double hardIron_X;
     double hardIron_Y;
@@ -107,6 +110,8 @@ typedef struct {
                                         /// 1=Magnetometers,
                                         /// 2=GPS,
                                         /// 4=GPS Course used for Heading
+
+    uint8_t         extPeriodicPackets[MAX_EXT_PERIODIC_PACKETS];
 } UserConfigurationStruct;
 
 typedef enum {
@@ -116,7 +121,7 @@ typedef enum {
     USER_DATA_SIZE                    ,   // 1
     USER_USER_BAUD_RATE               ,   // 2  order of next 4 parameters
     USER_USER_PACKET_TYPE             ,   // 3  of required unit output bandwidth
-    USER_USER_PACKET_RATE             ,   // 4 
+    USER_USER_PACKET_RATE             ,   // 4
     USER_LPF_ACCEL_TYPE               ,   // 5  prefered LPF filter type for accelerometer
     USER_LPF_RATE_TYPE                ,   // 6  prefered LPF filter type for rate sensor
     USER_ORIENTATION                  ,   // 7  unit orientation
@@ -130,7 +135,9 @@ typedef enum {
     USER_SOFT_IRON_RATIO              ,
     USER_SOFT_IRON_ANGLE              ,
     USER_FILTER_CONFIGURATION         ,
-    USER_MAX_PARAM
+    USER_EXT_PERIODIC_PACKET_START    ,
+    USER_EXT_PERIODIC_PACKET_END = USER_EXT_PERIODIC_PACKET_START + MAX_EXT_PERIODIC_PACKETS / 8,
+    USER_MAX_PARAM = USER_EXT_PERIODIC_PACKET_END
 } UserConfigParamNumber;
 
 #define MAX_SYSTEM_PARAM USER_ORIENTATION
