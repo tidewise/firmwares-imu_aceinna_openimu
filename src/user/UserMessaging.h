@@ -31,7 +31,7 @@ limitations under the License.
 #define USER_PACKET_ERROR   2
 
 // here is definition for packet rate divider
-// considering that data acquisition task runs at 200 Hz 
+// considering that data acquisition task runs at 200 Hz
 typedef enum {
     PACKET_RATE_INVALID = -1,
     PACKET_RATE_QUIET = 0,      // quiet mode
@@ -48,14 +48,14 @@ typedef enum {
 
 // User Input packet payload has next structure:
 // number      offset
-// of          of  first 
-// parameters  parameter    
-// U2          U2          U4/I4/F    
+// of          of  first
+// parameters  parameter
+// U2          U2          U4/I4/F
 // XXXX        YYYY       [parameters]
 // User input packet codes, change at will
 typedef enum {
     USR_IN_NONE         = 0 ,
-    USR_IN_PING             ,     
+    USR_IN_PING             ,
     USR_IN_UPDATE_CONFIG    ,
     USR_IN_UPDATE_PARAM     ,
     USR_IN_UPDATE_ALL       ,
@@ -93,7 +93,7 @@ typedef enum {
 // total size of user packet structure should not exceed 255 bytes
 #pragma pack(1)
 typedef struct {
-    uint8_t  packetPayload[252];    // maximum 252 bytes     
+    uint8_t  packetPayload[252];    // maximum 252 bytes
 } userPacket;
 #define MAX_PAYLOAD 252
 #define MAX_NUMBER_OF_USER_PARAMS_IN_THE_PACKET 30
@@ -128,7 +128,7 @@ typedef struct {
 #pragma pack()
 
 
-#define USR_OUT_TEST_PAYLOAD_LEN    (4)    // test parameter (uint32_t)    
+#define USR_OUT_TEST_PAYLOAD_LEN    (4)    // test parameter (uint32_t)
 #define USR_OUT_DATA1_PAYLOAD_LEN   (4*9)  // 3accels (float LE) + 3gyros (float LE) + 3 mags (floatLE)
 #define USR_OUT_ANG1_PAYLOAD_LEN    (47)   // See message loading code,HandleUserOutputPacket(), for information
 #define USR_OUT_ANG2_PAYLOAD_LEN    (4*10)

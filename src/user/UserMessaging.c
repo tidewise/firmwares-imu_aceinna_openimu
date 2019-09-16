@@ -66,45 +66,45 @@ EKF_OutputDataStruct *algo_res;
 //              55 55 6D 61 01 08 70 26
 //              55 55 6D 61 01 09 60 07
 //              55 55 6D 61 01 0A 50 64
-//              55 55 6D 61 01 0B 
-//              55 55 6D 61 01 0C 
-//              55 55 6D 61 01 0D 
+//              55 55 6D 61 01 0B
+//              55 55 6D 61 01 0C
+//              55 55 6D 61 01 0D
 //              55 55 6D 61 01 0E 10 E0
-//              55 55 6D 61 01 0F 
+//              55 55 6D 61 01 0F
 
 //  other: 55 55 ...
 
-/// List of allowed packet codes 
+/// List of allowed packet codes
 usr_packet_t userInputPackets[] = {
     {USR_IN_NONE,               {0,0}},
-    {USR_IN_PING,               "pG"}, 
-    {USR_IN_UPDATE_CONFIG,      "uC"}, 
-    {USR_IN_UPDATE_PARAM,       "uP"}, 
-    {USR_IN_UPDATE_ALL,         "uA"}, 
-    {USR_IN_SAVE_CONFIG,        "sC"}, 
-    {USR_IN_RESTORE_DEFAULTS,   "rD"}, 
-    {USR_IN_GET_CONFIG,         "gC"}, 
-    {USR_IN_GET_PARAM,          "gP"}, 
-    {USR_IN_GET_ALL,            "gA"}, 
-    {USR_IN_GET_VERSION,        "gV"}, 
-    {USR_IN_RESET,              "rS"}, 
+    {USR_IN_PING,               "pG"},
+    {USR_IN_UPDATE_CONFIG,      "uC"},
+    {USR_IN_UPDATE_PARAM,       "uP"},
+    {USR_IN_UPDATE_ALL,         "uA"},
+    {USR_IN_SAVE_CONFIG,        "sC"},
+    {USR_IN_RESTORE_DEFAULTS,   "rD"},
+    {USR_IN_GET_CONFIG,         "gC"},
+    {USR_IN_GET_PARAM,          "gP"},
+    {USR_IN_GET_ALL,            "gA"},
+    {USR_IN_GET_VERSION,        "gV"},
+    {USR_IN_RESET,              "rS"},
 // place new input packet code here, before USR_IN_MAX
     {USR_IN_MAG_ALIGN,          "ma"},   // 0x6D 0x61
     {USR_IN_GET_STATUS,         "gS"},
-    {USR_IN_MAX,                {0xff, 0xff}},   //  "" 
+    {USR_IN_MAX,                {0xff, 0xff}},   //  ""
 };
 
 
-// packet codes here should be unique - 
+// packet codes here should be unique -
 // should not overlap codes for input packets and system packets
-// First byte of Packet code should have value  >= 0x61  
-usr_packet_t userOutputPackets[] = {	
+// First byte of Packet code should have value  >= 0x61
+usr_packet_t userOutputPackets[] = {
 //   Packet Type                Packet Code
-    {USR_OUT_NONE,              {0x00, 0x00}}, 
-    {USR_OUT_TEST,              "zT"},   
-    {USR_OUT_DATA1,             "z1"},   
-    {USR_OUT_ANG1,              "a1"},   
-    {USR_OUT_ANG2,              "a2"},   
+    {USR_OUT_NONE,              {0x00, 0x00}},
+    {USR_OUT_TEST,              "zT"},
+    {USR_OUT_DATA1,             "z1"},
+    {USR_OUT_ANG1,              "a1"},
+    {USR_OUT_ANG2,              "a2"},
 // place new type and code here
     {USR_OUT_SCALED1,           "s1"},
     {USR_OUT_EKF1,              "e1"},
@@ -112,7 +112,7 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_EKF3,              "e3"},
     {USR_OUT_INFO1,             "i1"},
     {USR_OUT_EXT_PERIODIC,      "EP"},
-    {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
+    {USR_OUT_MAX,               {0xff, 0xff}},   //  ""
 };
 
 volatile char   *info;
@@ -142,7 +142,7 @@ int resolveUserPacketType(uint16_t receivedCode)
     }
 
     packet  = &userOutputPackets[1];
-    
+
     // validate packet code here and memorize for further processing
     while(packet->packetType != USR_OUT_MAX){
         code = (packet->packetCode[0] << 8) | packet->packetCode[1];
@@ -184,7 +184,7 @@ void userPacketTypeToBytes(uint8_t bytes[])
         _inputPacketType = USR_IN_MAX;  // wait for next input packet
         return;
     }
-    
+
     if(_outputPacketType && _outputPacketType < USR_OUT_MAX){
         // continuous packet
         bytes[0] = userOutputPackets[_outputPacketType].packetCode[0];
@@ -197,7 +197,7 @@ void userPacketTypeToBytes(uint8_t bytes[])
 }
 
 /** ***************************************************************************
- * @name setUserPacketType - set user output packet type 
+ * @name setUserPacketType - set user output packet type
  * @brief
  * @param [in] packet type
  * @retval  - TRUE if success, FALSE otherwise
@@ -275,14 +275,14 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
 
 
 /** ***************************************************************************
- * @name getUserPayloadLength - get user payload length for sanity check 
+ * @name getUserPayloadLength - get user payload length for sanity check
  * @brief
  *
  * @retval  - user payload length
  ******************************************************************************/
 int getUserPayloadLength(void)
 {
-    // ATTENTION: return actual user payload length, if user packet used    
+    // ATTENTION: return actual user payload length, if user packet used
     return _userPayloadLen;
 }
 
@@ -298,7 +298,7 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
 {
     BOOL valid = TRUE;
     int ret = USER_PACKET_OK;
-    
+
     uint8_t retVal;
     int8_t estimatedMagAlignVals[8] = {0};
     int8_t magAlignVals[8]          = {0};
@@ -306,11 +306,11 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
 //    userPacket *pkt =  (userPacket *)ptrUcbPacket->payload;
 
     /// call appropriate function based on packet type
-	switch (_inputPacketType) {
-		case USR_IN_RESET:
+    switch (_inputPacketType) {
+        case USR_IN_RESET:
             Reset();
             break;
-		case USR_IN_PING:
+        case USR_IN_PING:
             {
                 int len;
                 uint8_t *model = (uint8_t*)unitVersionString();
@@ -321,25 +321,25 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
             }
             // leave all the same - it will be bounced back unchanged
             break;
-		case USR_IN_GET_VERSION:
+        case USR_IN_GET_VERSION:
             {
                 int len = snprintf((char*)ptrUcbPacket->payload, 250, "%s", userVersionString );
                 ptrUcbPacket->payloadLength = len;
             }
             break;
-		case USR_IN_SAVE_CONFIG:
+        case USR_IN_SAVE_CONFIG:
             // payload length does not change
              if(!SaveUserConfig()){
                 valid = FALSE;
              }
              break;
-		case USR_IN_UPDATE_CONFIG:
+        case USR_IN_UPDATE_CONFIG:
              UpdateUserConfig((userConfigPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
-		case USR_IN_UPDATE_PARAM:
+        case USR_IN_UPDATE_PARAM:
              UpdateUserParam((userParamPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
-		case USR_IN_UPDATE_ALL:
+        case USR_IN_UPDATE_ALL:
              UpdateAllUserParams((allUserParamsPayload*)ptrUcbPacket->payload, &ptrUcbPacket->payloadLength);
              break;
         case USR_IN_RESTORE_DEFAULTS:
@@ -417,7 +417,7 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                     gMagAlign.estParams.softIronScaleRatio   = 0.98;
                     gMagAlign.estParams.softIronAngle        = -270.0 * DEG_TO_RAD;
 #endif
-                
+
                     // Bias can be +/- 8.0 [g] (full scale of sensor)
                     //   SF = 2^15 / maxVal = 2^15 / 8.0 = 4096
                     magAlignVals[0] = (char)( ( (int16_t)( gMagAlign.hardIronBias[X_AXIS] * (float)4096.0 ) >> 8 ) & 0xFF );
@@ -470,21 +470,21 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
                     DebugPrintEndline();
 #endif
 
-                    len = snprintf((char*)ptrUcbPacket->payload, 250, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", (char)magAlignVals[0], 
-                                                                                                          (char)magAlignVals[1], 
-                                                                                                          (char)magAlignVals[2], 
-                                                                                                          (char)magAlignVals[3], 
-                                                                                                          (char)magAlignVals[4], 
-                                                                                                          (char)magAlignVals[5], 
-                                                                                                          (char)magAlignVals[6], 
+                    len = snprintf((char*)ptrUcbPacket->payload, 250, "%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c", (char)magAlignVals[0],
+                                                                                                          (char)magAlignVals[1],
+                                                                                                          (char)magAlignVals[2],
+                                                                                                          (char)magAlignVals[3],
+                                                                                                          (char)magAlignVals[4],
+                                                                                                          (char)magAlignVals[5],
+                                                                                                          (char)magAlignVals[6],
                                                                                                           (char)magAlignVals[7],
-                                                                                                          (char)estimatedMagAlignVals[0], 
-                                                                                                          (char)estimatedMagAlignVals[1], 
-                                                                                                          (char)estimatedMagAlignVals[2], 
-                                                                                                          (char)estimatedMagAlignVals[3], 
-                                                                                                          (char)estimatedMagAlignVals[4], 
-                                                                                                          (char)estimatedMagAlignVals[5], 
-                                                                                                          (char)estimatedMagAlignVals[6], 
+                                                                                                          (char)estimatedMagAlignVals[0],
+                                                                                                          (char)estimatedMagAlignVals[1],
+                                                                                                          (char)estimatedMagAlignVals[2],
+                                                                                                          (char)estimatedMagAlignVals[3],
+                                                                                                          (char)estimatedMagAlignVals[4],
+                                                                                                          (char)estimatedMagAlignVals[5],
+                                                                                                          (char)estimatedMagAlignVals[6],
                                                                                                           (char)estimatedMagAlignVals[7] );
                     ptrUcbPacket->payloadLength = len;
                     break;
@@ -509,7 +509,7 @@ int HandleUserInputPacket(UcbPacketStruct *ptrUcbPacket)
         }
 
         ptrUcbPacket->packetType = UCB_USER_OUT;    // do not remove - done for proper packet routing
-        
+
         return ret;
 }
 
@@ -609,7 +609,7 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
 {
     BOOL ret = TRUE;
 
-	switch (type) {
+    switch (type) {
         case USR_OUT_DATA1:
             {
                 int n = 0;
@@ -633,7 +633,7 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
                 }
                 *payloadLen = sizeof(data1_payload_t);
             }
-			break;
+            break;
 
         case USR_OUT_ANG1:
             {
@@ -656,7 +656,7 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
                 //             NumOfBytes = 47 bytes
                 *payloadLen = USR_OUT_ANG1_PAYLOAD_LEN;
 
-                // Output time as reprented by gAlgorithm.itow (uint32_t 
+                // Output time as reprented by gAlgorithm.itow (uint32_t
                 //   incremented at each call of the algorithm)
                 uint32_t *algoData_1 = (uint32_t*)(payload);
                 *algoData_1++ = gAlgorithm.itow;
@@ -719,7 +719,7 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
                 //timerCount = TIM5->CNT;
                 //algoData[n++] = *ptr;
 
-                //ptr = 
+                //ptr =
 
                 n = 0;
                 algoData[n++] = 0.0;   // *ptr;
@@ -785,7 +785,7 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
         // place additional user packet preparing calls here
         // case USR_OUT_XXXX:
         //      *payloadLen = YYYY; // total user payload length, including user packet type
-        //      payload[0]  = ZZZZ; // user packet type 
+        //      payload[0]  = ZZZZ; // user packet type
         //      prepare dada here
         //      break;
         case USR_OUT_EKF1:
@@ -1067,6 +1067,6 @@ BOOL FillPayloadWithPacket(int type, uint8_t *payload, uint8_t *payloadLen)
 
 void WriteResultsIntoOutputStream(void *results)
 {
-//  implement specific data processing/saving here 
+//  implement specific data processing/saving here
     algo_res = results;
 }
