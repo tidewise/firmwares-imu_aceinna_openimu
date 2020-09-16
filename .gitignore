@@ -1,6 +1,5 @@
 .pio/**
 .pio/libdeps/**
-.vscode/**
 .pioenvs/**
 .piolibdeps/**
 *.map
