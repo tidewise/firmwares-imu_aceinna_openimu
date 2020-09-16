@@ -696,7 +696,7 @@ void _GenerateObservationCovariance_INS(void)
     gKalmanFilter.R[STATE_VX] = temp;// *((real)1.0 + fabs(gAlgorithm.filteredYawRate) * (real)RAD_TO_DEG);
     gKalmanFilter.R[STATE_VX] = gKalmanFilter.R[STATE_VX] * gKalmanFilter.R[STATE_VX];
     gKalmanFilter.R[STATE_VY] = gKalmanFilter.R[STATE_VX];
-    if (gAlgorithm.headingIni == HEADING_UNINITIALIZED)
+    if (!magUsedInAlgorithm() && gAlgorithm.headingIni == HEADING_UNINITIALIZED)
     {
         /* When heading is not initialized, velocity measurement is not able to correct 
          * attitude/rate bias/accel bias, the larger the velocity, the more uncertain it is.
@@ -1226,7 +1226,7 @@ static void Update_GPS(void)
     ComputeSystemInnovation_Att();
 
     // Initialize heading. If getting initial heading at this step, do not update att
-    if (gAlgorithm.headingIni < HEADING_GNSS_HIGH)
+    if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
     {
         if (InitializeHeadingFromGnss())
         {
