@@ -24,27 +24,16 @@ limitations under the License.
 #include <stdint.h>
 
 #include "GlobalConstants.h"
-#include "UserMessaging.h"
-#include "filter.h"
+#include "UserMessagingUART.h"
 
 /// User defined configuration strucrture
 ///Please notice, that parameters are 64 bit to accomodate double types as well as longer string types
 
-typedef enum {
-    ALGORITHM_USE_MAGNETOMETERS = 1,
-    ALGORITHM_USE_GPS = 2,
-    ALGORITHM_USE_COURSE_AS_HEADING = 4,
-    ALGORITHM_USE_ALL = 7
-} AlgorithmUsedSensors;
-
-/** MUST BE MULTIPLE OF 8 */
-#define MAX_EXT_PERIODIC_PACKETS 16
-
 typedef struct {
     uint64_t           dataCRC;             /// CRC of user configuration structure CRC-16
-    uint64_t           dataSize;            /// Size of the user configuration structure
-
-    int64_t            userUartBaudRate;    /// baudrate of user UART, bps.
+    uint64_t           dataSize;            /// Size of the user configuration structure 
+    
+    int64_t            userUartBaudRate;    /// baudrate of user UART, bps. 
                                             /// valid options are:
                                             /// 4800
                                             /// 9600
@@ -57,12 +46,12 @@ typedef struct {
     uint8_t            userPacketType[8];   /// User packet to be continiously sent by unit
                                             /// Packet types defined in structure UserOutPacketType
                                             /// in file UserMessaging.h
-
+                                            
     int64_t            userPacketRate;      /// Packet rate for continiously output packet, Hz.
-                                            /// Valid settings are: 0 ,2, 5, 10, 20, 25, 50, 100, 200
+                                            /// Valid settings are: 0 ,2, 5, 10, 20, 25, 50, 100, 200 
 
-    int64_t            lpfAccelFilterFreq;  /// built-in lpf filter cutoff frequency selection for accelerometers
-    int64_t            lpfRateFilterFreq;   /// built-in lpf filter cutoff frequency selection for rate sensors
+    int64_t            lpfAccelFilterFreq;  /// built-in lpf filter cutoff frequency selection for accelerometers   
+    int64_t            lpfRateFilterFreq;   /// built-in lpf filter cutoff frequency selection for rate sensors   
                                             /// Options are:
                                             /// 0  -  Filter turned off
                                             /// 50 -  Butterworth LPF 50HZ
@@ -72,18 +61,18 @@ typedef struct {
                                             /// 02 -  Butterworth LPF 2HZ
                                             /// 25 -  Butterworth LPF 25HZ
                                             /// 40 -  Butterworth LPF 40HZ
-
+    
     uint8_t           orientation[8];         /// unit orientation in format 0x0000000000ddrrff
                                             /// where   dd - down axis, rr - right axis, ff - forward axis
-                                            /// next axis values a valid :
+                                            /// next axis values a valid :  
                                             /// 'X' (0x58) -> plus  X, 'Y' (0x59) -> plus Y,  'Z' (0x5a) -> plus Z
                                             /// 'x' (0x78) -> minus X, 'y' (0x79) -> minus Y, 'z' (0x7a) ->minusZ
-
+    
     //***************************************************************************************
     // here is the border between arbitrary parameters and platform configuration parameters
     //***************************************************************************************
 
-    int64_t          gpsBaudRate;           /// baudrate of GPS UART, bps.
+    int64_t          gpsBaudRate;           /// baudrate of GPS UART, bps. 
                                             /// valid options are:
                                             /// 4800
                                             /// 9600
@@ -92,26 +81,25 @@ typedef struct {
                                             /// 57600
                                             /// 115200
                                             /// 230400
-    int64_t          gpsProtocol;           /// protocol of GPS receicer.
+    int64_t          gpsProtocol;           /// protocol of GPS receicer. 
                                             /// so far valid options are:
                                             /// NMEA_TEXT
                                             /// NOVATEL_BINARY
     // place new arbitrary configuration parameters here
     // parameter size should even to 4 bytes
     // Add parameter offset in UserConfigParamOffset structure if validation or
-    // special processing required
+    // special processing required 
 
     double hardIron_X;
     double hardIron_Y;
     double softIron_Ratio;
     double softIron_Angle;
-
-    uint64_t        filterConfig;        /// Bitfield specifying which sensors can be used
-                                        /// 1=Magnetometers,
-                                        /// 2=GPS,
-                                        /// 4=GPS Course used for Heading
-
-    uint8_t         extPeriodicPackets[MAX_EXT_PERIODIC_PACKETS];
+    double leverArmBx;
+    double leverArmBy;
+    double leverArmBz;
+    double pointOfInterestBx;
+    double pointOfInterestBy;
+    double pointOfInterestBz;
 } UserConfigurationStruct;
 
 typedef enum {
@@ -121,7 +109,7 @@ typedef enum {
     USER_DATA_SIZE                    ,   // 1
     USER_USER_BAUD_RATE               ,   // 2  order of next 4 parameters
     USER_USER_PACKET_TYPE             ,   // 3  of required unit output bandwidth
-    USER_USER_PACKET_RATE             ,   // 4
+    USER_USER_PACKET_RATE             ,   // 4 
     USER_LPF_ACCEL_TYPE               ,   // 5  prefered LPF filter type for accelerometer
     USER_LPF_RATE_TYPE                ,   // 6  prefered LPF filter type for rate sensor
     USER_ORIENTATION                  ,   // 7  unit orientation
@@ -134,19 +122,18 @@ typedef enum {
     USER_HARD_IRON_Y                  ,
     USER_SOFT_IRON_RATIO              ,
     USER_SOFT_IRON_ANGLE              ,
-    USER_FILTER_CONFIGURATION         ,
-    USER_EXT_PERIODIC_PACKET_START    ,
-    USER_EXT_PERIODIC_PACKET_END = USER_EXT_PERIODIC_PACKET_START + MAX_EXT_PERIODIC_PACKETS / 8,
-    USER_MAX_PARAM = USER_EXT_PERIODIC_PACKET_END
+    USER_LEVER_ARM_BX                 ,
+    USER_LEVER_ARM_BY                 ,
+    USER_LEVER_ARM_BZ                 ,
+    USER_POINT_OF_INTEREST_BX         ,
+    USER_POINT_OF_INTEREST_BY         ,
+    USER_POINT_OF_INTEREST_BZ         ,
+    USER_MAX_PARAM
 } UserConfigParamNumber;
 
 #define MAX_SYSTEM_PARAM USER_ORIENTATION
 
 extern int userPacketOut;
-
-#define USER_OK      0x00
-#define USER_NAK     0x80
-#define USER_INVALID 0x81
 
 #define INVALID_PARAM           -1
 #define INVALID_VALUE           -2
@@ -176,6 +163,7 @@ extern BOOL      GetUserParam(userParamPayload*  pld, uint8_t *payloadLen);
 extern BOOL      GetAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen);
 extern BOOL      UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply);
 extern BOOL      UpdateSystemParameter(uint32_t offset, uint64_t data, BOOL fApply);
+BOOL             setUserPacketType(uint8_t* type, BOOL fApply);
 
 #endif /* USER_CONFIGURATION_H */
 

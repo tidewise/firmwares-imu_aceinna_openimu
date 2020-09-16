@@ -25,14 +25,15 @@ limitations under the License.
 
 #include "string.h"
 
-#include "algorithmAPI.h"
 #include "gpsAPI.h"
 #include "magAPI.h"
 #include "platformAPI.h"
+#include "eepromAPI.h"
 
 #include "UserConfiguration.h"
-#include "UserMessaging.h"
 #include "Indices.h"
+
+#include "algorithmAPI.h"
 
 // Default user configuration structure
 // Applied to unit upon reception of "zR" command
@@ -41,20 +42,25 @@ limitations under the License.
 const UserConfigurationStruct gDefaultUserConfig = {
     .dataCRC             =  0,
     .dataSize            =  sizeof(UserConfigurationStruct),
-    .userUartBaudRate    =  57600,
+    .userUartBaudRate    =  230400,
     .userPacketType      =  "e2",
-    .userPacketRate      =  20,
+    .userPacketRate      =  100,
     .lpfAccelFilterFreq  =  25,
     .lpfRateFilterFreq   =  25,
-    .orientation         =  "-X-Y+Z",
+    .orientation         =  "+X+Y+Z",
     .gpsBaudRate         =  115200,
-    .gpsProtocol         =  NOVATEL_BINARY,
+    .gpsProtocol         =  UBLOX_BINARY,
     // add default parameter values here, if desired
     .hardIron_X          = 0.0,
     .hardIron_Y          = 0.0,
     .softIron_Ratio      = 1.0,
     .softIron_Angle      = 0.0,
-    .filterConfig        = ALGORITHM_USE_ALL
+    .leverArmBx          = 0.0,
+    .leverArmBy          = 0.0,
+    .leverArmBz          = 0.0,
+    .pointOfInterestBx   = 0.0,
+    .pointOfInterestBy   = 0.0,
+    .pointOfInterestBz   = 0.0,
 };
 
 UserConfigurationStruct gUserConfiguration;
@@ -80,27 +86,6 @@ void getUserMagAlignParams(magAlignUserParams_t *params)
     params->softIron_Angle = gUserConfiguration.softIron_Angle;
 }
 
-BOOL SetFilterConfiguration(uint64_t flags, BOOL apply)
-{
-    if (apply) {
-        enableMagInAlgorithm(flags & ALGORITHM_USE_MAGNETOMETERS ? 1 : 0);
-        enableGpsInAlgorithm(flags & ALGORITHM_USE_GPS ? 1 : 0);
-        enableCourseAsHeadingInAlgorithm(flags & ALGORITHM_USE_COURSE_AS_HEADING ? 1 : 0);
-    }
-    return TRUE;
-}
-
-uint64_t GetFilterConfiguration()
-{
-    uint64_t flags = 0;
-    if (magUsedInAlgorithm())
-        flags |= ALGORITHM_USE_MAGNETOMETERS;
-    if (gpsUsedInAlgorithm())
-        flags |= ALGORITHM_USE_GPS;
-    if (courseUsedAsHeadingInAlgorithm())
-        flags |= ALGORITHM_USE_COURSE_AS_HEADING;
-    return flags;
-}
 
 void userInitConfigureUnit()
 {
@@ -109,31 +94,31 @@ void userInitConfigureUnit()
 
     // sanity check for maximum size of user config structure;
     if(size >= 0x4000){
-        while(1);
+        while(1);           
     }
 
-    if(appStartedFirstTime()) {
+    if(EEPROM_IsAppStartedFirstTime()) {
         // comment next line if want to keep previously stored in EEPROM parameters
-        // after rebuilding and/or reloading new application
+        // after rebuilding and/or reloading new application 
         RestoreDefaultUserConfig();  //JSM - Commented out so the mag-align values
         //                                   won't be overwritten each time the
         //                                   firmware is reloaded
     }
 
     // Validate checksum of user configuration structure
-    configValid = validateUserConfigInEeprom(&size);
-
+    configValid = EEPROM_ValidateUserConfig(&size);
+    
     if(configValid == TRUE) {
         // Here we have validated User configuration image.
         // Load it from eeprom into ram on top of the default configuration
-        loadUserConfigFromEeprom((void*)&gUserConfiguration, &size);
+        EEPROM_LoadUserConfig((void*)&gUserConfiguration, &size);
     } else{
         memset((void*)&gUserConfiguration, 0xff, sizeof(gUserConfiguration));
     }
 
     // assign new actual size
     gUserConfiguration.dataSize = sizeof(UserConfigurationStruct);
-
+    
     // apply parameters to the platform
     for(int i = USER_USER_BAUD_RATE; i <= USER_LAST_SYSTEM_PARAM && configValid; i++){
         UpdateSystemParameter(i, ptr[i], TRUE);
@@ -145,12 +130,12 @@ void userInitConfigureUnit()
     }
 
     info = getBuildInfo();
-}
+} 
 
 
 
 /** ***************************************************************************
- * @name UpdateSystemParameter - updating of system configuration parameter based of user preferences
+ * @name UpdateSystemParameter - updating of system configuration parameter based of user preferences 
  * @brief
  *
  * @param [in]  number - parameter number in user configuration structure
@@ -189,7 +174,7 @@ BOOL  UpdateSystemParameter(uint32_t number, uint64_t data, BOOL fApply)
             case  USER_CRC:
             case  USER_DATA_SIZE:
                 return TRUE;
-
+        
         // case USER_XXX:  add function calls here if parameter XXXX
         //                        required be updated on the fly
         //             break;
@@ -198,7 +183,7 @@ BOOL  UpdateSystemParameter(uint32_t number, uint64_t data, BOOL fApply)
             result = FALSE;
             break;
     }
-
+    
     if(result == TRUE){
         ptr[number] = data;
     }
@@ -208,7 +193,7 @@ BOOL  UpdateSystemParameter(uint32_t number, uint64_t data, BOOL fApply)
 
 
 /** ***************************************************************************
- * @name UpdateUserParameter - updating user configuration parameter based of preferences
+ * @name UpdateUserParameter - updating user configuration parameter based of preferences 
  * @brief
  *
  * @param [in]  number - parameter number in user configuration structure
@@ -225,28 +210,44 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
          return FALSE;
      }
 
+     double *tmp;
      switch (number) {
-        case USER_GPS_BAUD_RATE:
+        case USER_GPS_BAUD_RATE:        
             result = SetGpsBaudRate((int) data, fApply);
             break;
-        case USER_GPS_PROTOCOL:
+        case USER_GPS_PROTOCOL:        
             result = SetGpsProtocol((int) data, fApply);
             break;
-        case USER_FILTER_CONFIGURATION:
-            result = SetFilterConfiguration(data, fApply);
+        case USER_LEVER_ARM_BX:
+            tmp = (double*)&data;
+            gUserConfiguration.leverArmBx = *tmp;
+            setLeverArm( (real)gUserConfiguration.leverArmBx,
+                         (real)gUserConfiguration.leverArmBy,
+                         (real)gUserConfiguration.leverArmBz );
+            result = TRUE;
             break;
+        case USER_LEVER_ARM_BY:
+            tmp = (double*)&data;
+            gUserConfiguration.leverArmBy = *tmp;
+            setLeverArm( (real)gUserConfiguration.leverArmBx,
+                         (real)gUserConfiguration.leverArmBy,
+                         (real)gUserConfiguration.leverArmBz );
+            result = TRUE;
+            break;
+        case USER_LEVER_ARM_BZ:
+            tmp = (double*)&data;
+            gUserConfiguration.leverArmBz = *tmp;
+            setLeverArm( (real)gUserConfiguration.leverArmBx,
+                         (real)gUserConfiguration.leverArmBy,
+                         (real)gUserConfiguration.leverArmBz );
+            result = TRUE;
+            break;   
         // case USER_XXX_OFFSET:  add function calls here if parameter XXXX
         //                        required be updated on the fly and/or validated
         //             break;
         default:
-            if (fApply && number >= USER_EXT_PERIODIC_PACKET_START &&
-                number < USER_EXT_PERIODIC_PACKET_END) {
-                uint8_t offset = (number - USER_EXT_PERIODIC_PACKET_START) * 8;
-                uint8_t* periods = (uint8_t*)&data;
-                for (int i = 0; i < offset; ++i) {
-                    SetExtPacketPeriod(offset + i, periods[i]);
-                }
-            }
+            // by default result should be true if there is no special
+            // consideration or criteria for parameter validity
             result = TRUE;
             break;
     }
@@ -254,14 +255,14 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
     if(result == TRUE){
         ptr[number] = data;
     }
-
+   
     return result;
 }
 
 /** ****************************************************************************
  * @name UpdateUserConfig
  * @brief writes user data into user configuration structure, validates data if
- *        required, updates system parameters
+ *        required, updates system parameters  
  *
  * @param [in] pointer to userData payload in the packet
  * @retval N/A
@@ -276,23 +277,23 @@ BOOL UpdateUserConfig(userConfigPayload*  pld, uint8_t *payloadLen)
     int32_t result = 0;
 
     maxParam    = sizeof(UserConfigurationStruct)/8;
-
-    // Validate parameters numbers and quantity
+    
+    // Validate parameters numbers and quantity 
     if(pld->numParams  > MAX_NUMBER_OF_USER_PARAMS_IN_THE_PACKET){
         lenValid = FALSE;
         result   = INVALID_PAYLOAD_SIZE;
     }
 
     if(pld->paramOffset >= maxParam){
-        offsetValid = FALSE;
+        offsetValid = FALSE;        
         result      = INVALID_PARAM;
     }
 
     if((pld->numParams + pld->paramOffset) > maxParam){
-        numValid = FALSE;
+        numValid = FALSE;        
         result   = INVALID_PARAM;
     }
-
+    
     if(offsetValid && numValid && lenValid){
         // Validate parameters values first
         offset = pld->paramOffset;
@@ -311,7 +312,7 @@ BOOL UpdateUserConfig(userConfigPayload*  pld, uint8_t *payloadLen)
             // Apply parameters values here
             offset = pld->paramOffset;
             for (i = 0; i < pld->numParams; i++){
-                ret = UpdateSystemParameter(offset, pld->parameters[i], FALSE);
+                ret = UpdateSystemParameter(offset, pld->parameters[i], TRUE);
                 if (ret != TRUE){
                     ret = UpdateUserParameter(offset, pld->parameters[i], TRUE);
                 }
@@ -321,7 +322,7 @@ BOOL UpdateUserConfig(userConfigPayload*  pld, uint8_t *payloadLen)
     }
 
         pld->numParams  = result;
-    *payloadLen      = 4;
+    *payloadLen      = 4;     
 
     return TRUE;
 }
@@ -330,7 +331,7 @@ BOOL UpdateUserConfig(userConfigPayload*  pld, uint8_t *payloadLen)
 /** ****************************************************************************
  * @name UpdateUserParam
  * @brief writes user data into user configuration structure, validates data if
- *        required, updates system parameters
+ *        required, updates system parameters  
  *
  * @param [in] pointer to userData payload in the packet
  * @retval N/A
@@ -343,8 +344,8 @@ BOOL UpdateUserParam(userParamPayload*  pld, uint8_t *payloadLen)
     int32_t result = 0;
 
     maxParam    = sizeof(UserConfigurationStruct)/8;
-    offsetValid = pld->paramNum <  maxParam;
-
+    offsetValid = pld->paramNum <  maxParam;        
+    
     if(offsetValid){
         // Validate parameter first
         ret = UpdateSystemParameter(pld->paramNum, pld->parameter, FALSE);
@@ -359,13 +360,13 @@ BOOL UpdateUserParam(userParamPayload*  pld, uint8_t *payloadLen)
             }
         }else{
             result = INVALID_VALUE;
-        }
+        }    
     } else  {
         result = INVALID_PARAM;
     }
-
+    
         pld->paramNum = result;
-    *payloadLen   = 4;
+    *payloadLen   = 4;                  
 
     return TRUE;
 }
@@ -374,7 +375,7 @@ BOOL UpdateUserParam(userParamPayload*  pld, uint8_t *payloadLen)
 /** ****************************************************************************
  * @name UpdateAllUserParams
  * @brief writes user data into user configuration structure, validates data if
- *        required, updates system parameters
+ *        required, updates system parameters  
  *
  * @param [in] pointer to userData payload in the packet
  * @retval N/A
@@ -382,7 +383,7 @@ BOOL UpdateUserParam(userParamPayload*  pld, uint8_t *payloadLen)
 /** ****************************************************************************
  * @name UpdateUserConfig
  * @brief writes user data into user configuration structure, validates data if
- *        required, updates system parameters
+ *        required, updates system parameters  
  *
  * @param [in] pointer to userData payload in the packet
  * @retval N/A
@@ -393,7 +394,7 @@ BOOL UpdateAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen)
     BOOL lenValid = TRUE;
     BOOL numValid = TRUE;
     BOOL ret = FALSE;
-    int32_t    result = 0;
+    int32_t    result = 0; 
 
     int    numParams = (*payloadLen)/8;
     maxParam  = sizeof(UserConfigurationStruct)/8;
@@ -407,7 +408,7 @@ BOOL UpdateAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen)
         numValid = FALSE;
         result   = INVALID_PARAM;
     }
-
+    
     if(numValid && lenValid){
         // Validate parameters here
         offset = 0;
@@ -445,8 +446,8 @@ BOOL UpdateAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen)
 
 /** ****************************************************************************
  * @name  GetUserConfig
- * @brief Retrieves specified number of user configuration parameters data for
- *        sending to the external host starting from specified offset in user
+ * @brief Retrieves specified number of user configuration parameters data for 
+ *        sending to the external host starting from specified offset in user 
  *        configuration structure (refer to UserConfigParamOffset structure for
  *        specific value of offsets)
  * @param [in] pointer to userData payload in the packet
@@ -461,32 +462,32 @@ BOOL GetUserConfig(userConfigPayload*  pld, uint8_t *payloadLen)
 
     maxParam    = sizeof(UserConfigurationStruct)/8;
 
-    offsetValid = pld->paramOffset < maxParam;
+    offsetValid = pld->paramOffset < maxParam;        
 
-    lenValid    = ((pld->numParams + pld->paramOffset) <= maxParam) &&
-                   (pld->numParams <= MAX_NUMBER_OF_USER_PARAMS_IN_THE_PACKET);
-
+    lenValid    = ((pld->numParams + pld->paramOffset) <= maxParam) && 
+                   (pld->numParams <= MAX_NUMBER_OF_USER_PARAMS_IN_THE_PACKET);   
+    
     if(offsetValid && lenValid){
         offset = pld->paramOffset;
         for (i = 0; i < pld->numParams; i++, offset++)
         {
             pld->parameters[i] = ptr[offset];
         }
-        *payloadLen     = (pld->numParams + 1) * 8;
+        *payloadLen     = (pld->numParams + 1) * 8;  
     } else  {
         *payloadLen    = 4;
         pld->numParams = INVALID_PARAM;
     }
 
-    return TRUE;
+    return TRUE;    
 
 }
 
 
 /** ****************************************************************************
  * @name  GetUserParam
- * @brief Retrieves specified number of user configuration parameters data for
- *        sending to the external host starting from specified offset in user
+ * @brief Retrieves specified number of user configuration parameters data for 
+ *        sending to the external host starting from specified offset in user 
  *        configuration structure (refer to UserConfigParamOffset structure for
  *        specific value of offsets)
  * @param [in] pointer to userData payload in the packet
@@ -499,8 +500,8 @@ BOOL GetUserParam(userParamPayload*  pld, uint8_t *payloadLen)
     uint64_t *ptr = (uint64_t *)&gUserConfiguration;
 
     maxParam    = sizeof(UserConfigurationStruct)/8;
-    offsetValid = pld->paramNum < maxParam;
-
+    offsetValid = pld->paramNum < maxParam;        
+    
     if(offsetValid){
         offset = pld->paramNum;
         pld->parameter = ptr[offset];
@@ -517,8 +518,8 @@ BOOL GetUserParam(userParamPayload*  pld, uint8_t *payloadLen)
 
 /** ****************************************************************************
  * @name  GetAllUserParams
- * @brief Retrieves specified number of user configuration parameters data for
- *        sending to the external host starting from specified offset in user
+ * @brief Retrieves specified number of user configuration parameters data for 
+ *        sending to the external host starting from specified offset in user 
  *        configuration structure (refer to UserConfigParamOffset structure for
  *        specific value of offsets)
  * @param [in] pointer to userData payload in the packet
@@ -530,13 +531,13 @@ BOOL GetAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen)
     uint64_t *ptr = (uint64_t *)&gUserConfiguration;
 
     numParams   = sizeof(UserConfigurationStruct)/8;
-
+    
     offset = 0;
     for (i = 0; i < numParams; i++, offset++){
             pld->parameters[i] = ptr[offset];
     }
 
-    *payloadLen     = numParams* 8;
+    *payloadLen     = numParams* 8;  
 
     return TRUE;
 }
@@ -544,8 +545,8 @@ BOOL GetAllUserParams(allUserParamsPayload*  pld, uint8_t *payloadLen)
 
 /** ****************************************************************************
  * @name  SetMagAlignCmds
- * @brief Retrieves specified number of user configuration parameters data for
- *        sending to the external host starting from specified offset in user
+ * @brief Retrieves specified number of user configuration parameters data for 
+ *        sending to the external host starting from specified offset in user 
  *        configuration structure (refer to UserConfigParamOffset structure for
  *        specific value of offsets)
  * @param [in] pointer to userData payload in the packet
@@ -557,20 +558,20 @@ BOOL SetMagAlignCmds(allUserParamsPayload*  pld, uint8_t *payloadLen)
     uint64_t *ptr = (uint64_t *)&gUserConfiguration;
 
     numParams   = sizeof(UserConfigurationStruct)/8;
-
+    
     offset = 0;
     for (i = 0; i < numParams; i++, offset++){
             pld->parameters[i] = ptr[offset];
     }
 
-    *payloadLen     = numParams* 8;
+    *payloadLen     = numParams* 8;  
 
     return TRUE;
 }
 
 
 /** ***************************************************************************
- * @name SaveUserConfig - saving of user configuration structure un the
+ * @name SaveUserConfig - saving of user configuration structure un the 
  *       predefined flash sector
  * @brief
  *
@@ -583,10 +584,10 @@ BOOL  SaveUserConfig(void)
     BOOL status;
 
     size   = sizeof(UserConfigurationStruct);
-    status = saveUserConfigInEeprom((uint8_t *)&gUserConfiguration, size);
+    status = EEPROM_SaveUserConfig((uint8_t *)&gUserConfiguration, size);
 
     if(status){
-        return TRUE;
+        return TRUE; 
     }
 
     return FALSE;

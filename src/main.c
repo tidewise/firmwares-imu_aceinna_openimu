@@ -38,7 +38,6 @@ limitations under the License.
 #include "debug.h"
 
 #include "taskDataAcquisition.h"
-#include "taskUserCommunication.h"
 
 #include "osapi.h"
 #include "osresources.h"
@@ -56,6 +55,9 @@ limitations under the License.
 #endif
 
 char buildInfo[] = {__DATE__"," __TIME__};
+BOOL fSPI = FALSE;
+BOOL fGPS = FALSE;
+
 
 /** ***************************************************************************
  * @name getBuildInfo - provides the pointer to the build date and time string
@@ -82,6 +84,10 @@ void DebugInterfaceInit(void)
 {
     char status[100];
     
+    if(fSPI && fGPS){
+        return;         // no resources
+    }
+    
     int debugChannel = platformGetSerialChannel(DEBUG_SERIAL_PORT);
 
     if(debugChannel == UART_CHANNEL_NONE){
@@ -89,19 +95,15 @@ void DebugInterfaceInit(void)
         return;
     }
 
-    // Add a delay to allow the system to stabilize after the reset line (nRst)
-    // is released
-    for(int i = 0; i < 4000000; i++) ;   // TODO - calculate more precisely
-    //DelayMs(300); //todo - calculate
-
     // Initialize the DEBUG USART (serial) port
     InitDebugSerialCommunication(230400); // debug_usart.c
     //DEBUG_STRING("\r\nDMU380 System\r\n");
 
     BoardGetResetStatus(status, sizeof(status));
 
-    ERROR_STRING(status);
+    //ERROR_STRING(status);
 }
+
 
 void CreateTasks(void)
 {
@@ -115,17 +117,11 @@ void CreateTasks(void)
         while(1);
     }
 
-    //user communication task
-    osThreadDef(USER_COMM_TASK, TaskUserCommunication, osPriorityNormal, 0, 2048);
-    iD = osThreadCreate(osThread(USER_COMM_TASK), NULL);
-    if(iD == NULL){
-        while(1);
-    }
 
     gyroReadySem      = osSemaphoreCreate(osSemaphore(GYRO_READY_SEM), 1);
     accelReadySem     = osSemaphoreCreate(osSemaphore(ACCEL_READY_SEM), 1);
     magReadySem       = osSemaphoreCreate(osSemaphore(MAG_READY_SEM), 1);
-    tempReadySem      = osSemaphoreCreate(osSemaphore(MAG_READY_SEM), 1);
+    tempReadySem      = osSemaphoreCreate(osSemaphore(TEMP_READY_SEM), 1);
     navDataReadySem   = osSemaphoreCreate(osSemaphore(NAV_DATA_READY_SEM), 1);
     dataAcqSem        = osSemaphoreCreate(osSemaphore(DATA_ACQ_SEM), 1);
 
@@ -143,6 +139,7 @@ void CreateTasks(void)
 #endif
 
 #ifdef CLI
+    if((fSPI && !fGPS) || !fSPI){
     osThreadDef(CLI_TASK,  TaskCommandLine, osPriorityLow, 0, 1024);
     iD = osThreadCreate(osThread(CLI_TASK), NULL);
     if(iD == NULL){
@@ -150,6 +147,7 @@ void CreateTasks(void)
     }
     cliSem  = osSemaphoreCreate(osSemaphore(CLI_SEM), 1);
     platformRegisterRxSerialSemaphoreID(DEBUG_SERIAL_PORT, cliSem);
+    }
 #endif
 }
 
@@ -164,34 +162,50 @@ void CreateTasks(void)
  ******************************************************************************/
 int main(void)
 {
+     BOOL res;
+#ifdef GPS
+     fGPS = TRUE;
+#endif
+
     // Initialize processor and board-related signals  
     BoardInit();
 
+#ifdef SPI_BUS_COMM
+    fSPI = platformSetUnitCommunicationType(SPI_COMM);
+#endif
+    if(!fSPI){
+        // means pin DRDY is low - mandatory for UART interface
+        // redundant since default is UART_COMM 
     platformSetUnitCommunicationType(UART_COMM);
+    }
 
     // Un-assign and reassign ports
+    if(!fSPI){
 #ifdef GPS
     platformUnassignSerialChannels();
 
     BOOL res;
     res = platformAssignPortTypeToSerialChannel(USER_SERIAL_PORT, UART_CHANNEL_0);
     while(!res){};  // check if valid
-    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_2);
+    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_1);
     while(!res){};  // check if valid
-    res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_1);
+    res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_2);
     while(!res){};  // check if valid
 #else
     platformUnassignSerialChannels();
 
-    BOOL res;
     res = platformAssignPortTypeToSerialChannel(USER_SERIAL_PORT, UART_CHANNEL_0);
     while(!res){};  // check if valid
-    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_2);
+    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_1);
     while(!res){};  // check if valid
-    //res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_1);
-    //while(!res){};  // check if valid
 #endif
-
+    }else{
+#ifdef GPS
+    platformUnassignSerialChannels();
+    res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_2);
+    while(!res){};  // check if valid
+#endif
+    }
     // Apply factory configuration
     platformInitConfigureUnit(); 
 
@@ -201,12 +215,8 @@ int main(void)
     // Initialize OS and create required tasks
     CreateTasks();
  
-     // Initialize the DEBUG USART (serial) port
-#ifndef GPS_ON_DEBUG_PORT
+     // Initialize the DEBUG serial port, if possible 
     DebugInterfaceInit();
-#endif
-
-    //InitTimer_Watchdog( ENABLE );
     
     // Start Running the tasks...
      // Start scheduler

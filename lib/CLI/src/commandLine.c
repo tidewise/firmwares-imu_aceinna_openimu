@@ -29,7 +29,6 @@ limitations under the License.
 #include <stdio.h>
 #include "commandLine.h"
 #include "debug.h"
-#include "debug_usart.h"
 #include "utilities.h"
 #include "osapi.h"
 #include "osresources.h"
@@ -70,7 +69,7 @@ void CmdPrintPrompt()
 void CmdLineLookup(tCommand const *cmd_table)
 {
     static uint32_t index = 0;
-    if (DebugSerialReadLine((uint8_t*) gCmdLine, &index, 80)) {
+    if (DebugReadLine((uint8_t*) gCmdLine, &index, 80)) {
         strrep(gCmdLine, '\r', 0);
         strrep(gCmdLine, '\n', 0);
         if (gCmdLine[0]) {//don't process empty string

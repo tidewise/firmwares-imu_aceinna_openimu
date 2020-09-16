@@ -31,12 +31,14 @@ limitations under the License.
 #include "magAPI.h"
 #include "platformAPI.h"
 #include "userAPI.h"
+#include "spiAPI.h"
 
 #include "taskDataAcquisition.h"
-#include "taskUserCommunication.h"
 
 #include "osapi.h"
 #include "osresources.h"
+#include "commAPI.h"
+
 
 /** ***************************************************************************
  * @name TaskDataAcquisition() CALLBACK main loop
@@ -96,8 +98,13 @@ void TaskDataAcquisition(void const *argument)
         }
         
         // inform user, that new data set is being prepared (if required)
+        // in case of SPI communication interface sets pin DRDY high
         // in case of UART communication interface sets pin IO2 high
+        if(platformGetUnitCommunicationType() != UART_COMM){
+            setDataReadyPin(1);
+        }else{
         setIO2Pin (1);
+        }
 
         // Get calibrated sensor data:
         //   Inside this function the sensor data is filtered by a second-order low-pass
@@ -152,8 +159,12 @@ void TaskDataAcquisition(void const *argument)
 
         // Inform user, that new data set is ready (if required)
         // in case of UART communication interface clears pin IO2
-        // Pin IO2 can be used for timing of data processing 
-        setIO2Pin(0);
+        // in case of SPI  communication interface clears pin DRDY
+        if(platformGetUnitCommunicationType() != UART_COMM){
+            setDataReadyPin(0);
+        }else{
+            setIO2Pin (0);
+        }
 
         if (platformHasMag() ) {
             // Mag Alignment (follows Kalman filter or user algorithm as the
@@ -164,11 +175,13 @@ void TaskDataAcquisition(void const *argument)
 
         if(platformGetUnitCommunicationType() != UART_COMM){
             // Perform interface - specific processing here
+            FillSPIBurstDataBuffer();
         } else {
             // Process commands and output continuous packets to UART
             // Processing of user commands always goes first
             ProcessUserCommands ();
-            SendContinuousPacket(dacqRate);
+            int rate = fAlgorithmSynced? 0: dacqRate; 
+            SendContinuousPacket(rate);
         }
     }
 }

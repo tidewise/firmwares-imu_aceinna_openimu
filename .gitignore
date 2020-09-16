@@ -1,12 +1,9 @@
-.pioenvs
-.piolibdeps
-.pio
-.vscode
+.pio/**
+.pio/libdeps/**
+.vscode/**
+.pioenvs/**
+.piolibdeps/**
 *.map
-.vscode/c_cpp_properties.json
-.vscode/launch.json
-.vscode/*.db
-.vscode/.browse.c_cpp.db*
 .settings
 .cproject
 .project
