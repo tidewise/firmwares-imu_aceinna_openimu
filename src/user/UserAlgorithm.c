@@ -107,7 +107,7 @@ static void _InitAlgo(uint8_t algoType)
         // Reset 'initAlgo' so this is not executed more than once.  This
         //   prevents the algorithm from being switched during run-time.
         initAlgo = 0;
-        
+
         // Set the configuration variables for a VG-type solution
         //   (useMags = 0 forces the VG solution)
         gAlgorithm.Behavior.bit.freeIntegrate      = 0;
@@ -116,6 +116,10 @@ static void _InitAlgo(uint8_t algoType)
         gAlgorithm.Behavior.bit.useOdo             = 0;
         gAlgorithm.Behavior.bit.restartOnOverRange = 0;
         gAlgorithm.Behavior.bit.dynamicMotion      = 1;
+        gAlgorithm.Behavior.bit.enableStationaryLockYaw = FALSE;
+        gAlgorithm.Behavior.bit.enableImuStaticDetect = FALSE;
+        gAlgorithm.velocityAlwaysAlongBodyX = FALSE;
+        gAlgorithm.staticDetectParam.staticGnssVel = 0;
 
         // Set the system configuration based on system type
         switch( algoType ) {
@@ -132,7 +136,7 @@ static void _InitAlgo(uint8_t algoType)
                 /* Set the configuration variables for INS solution.
                  * (Enable GPS and set algorithm calling frequency to 100Hz)
                  */
-                enableMagInAlgorithm(FALSE);
+                enableMagInAlgorithm(TRUE);
                 enableGpsInAlgorithm(TRUE);
                 enableOdoInAlgorithm(FALSE);
                 gAlgorithm.callingFreq = FREQ_100_HZ;  // redundant; set above
