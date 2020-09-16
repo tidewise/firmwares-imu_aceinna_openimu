@@ -185,7 +185,7 @@ void EKF_UpdateStage(void)
             {
                 // GPS heading valid?
                 gAlgoStatus.bit.gpsHeadingValid = (gEKFInput.rawGroundSpeed >= LIMIT_MIN_GPS_VELOCITY_HEADING);
-                useGpsHeading = gAlgoStatus.bit.gpsHeadingValid;
+                useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
@@ -322,7 +322,7 @@ void ComputeSystemInnovation_Att(void)
         }
         
     }
-    else if ( magUsedInAlgorithm() && gAlgorithm.state <= LOW_GAIN_AHRS )
+    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
     {
         gKalmanFilter.nu[STATE_YAW]   = gKalmanFilter.measuredEulerAngles[YAW] -
                                         gKalmanFilter.eulerAngles[YAW];
@@ -628,7 +628,7 @@ void _GenerateObservationCovariance_AHRS(void)
             gKalmanFilter.R[STATE_YAW] *= 10.0;
         }
     }
-    else if ( magUsedInAlgorithm() && gAlgorithm.state <= LOW_GAIN_AHRS )
+    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
     {
         // todo: need to further distinguish between if mag is used
         // MAGNETOMETERS
