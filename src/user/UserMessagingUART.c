@@ -37,6 +37,7 @@ limitations under the License.
 #include "UserAlgorithm.h"
 #include "UserConfiguration.h"
 #include "CommonMessages.h"
+#include "TidewiseMessages.h"
 
 #include "MagAlign.h"
 
@@ -105,7 +106,8 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_SCALED1,           "s1"},
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
-    {USR_OUT_MAX,               {0xff, 0xff}},   //  "" 
+    {USR_OUT_EKF4,              "e4"},
+    {USR_OUT_MAX,               {0xff, 0xff}},   //  ""
 };
 
 volatile char   *info;
@@ -215,6 +217,10 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             _userPayloadLen   = USR_OUT_EKF1_PAYLOAD_LEN;
             break;
         case USR_OUT_EKF2: // packet with EKF algorithm data
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_EKF2_PAYLOAD_LEN;
+            break;
+        case USR_OUT_EKF4: // packet with EKF algorithm data
             _outputPacketType = type;
             _userPayloadLen   = USR_OUT_EKF2_PAYLOAD_LEN;
             break;
@@ -535,6 +541,15 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
                 // Variables used to hold the EKF values
                 uint8_t len;
                 Fill_e2PacketPayload(payload, &len);
+                *payloadLen = len;
+            }
+            break;
+
+        case USR_OUT_EKF4:
+            {
+                // Variables used to hold the EKF values
+                uint8_t len;
+                Fill_e4PacketPayload(payload, &len);
                 *payloadLen = len;
             }
             break;
