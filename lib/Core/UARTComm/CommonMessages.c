@@ -339,9 +339,9 @@ BOOL Fill_e2PacketPayload(uint8_t *payload, uint8_t *payloadLen)
         pld->velocity[i] = fData[i]; 
     }
 
-    GetMagData_G(dData);
+    EKF_GetCorrectedMags(fData);
     for(int i = 0; i < NUM_AXIS; i++){
-        pld->mags[i] = (float)dData[i]; 
+        pld->mags[i] = (float)fData[i];
     }
 
     EKF_GetEstimatedLLA(dData);
