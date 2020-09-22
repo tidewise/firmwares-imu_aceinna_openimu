@@ -405,6 +405,15 @@ void EKF_GetCorrectedAccels(real *CorrAccels_B)
     CorrAccels_B[Z_AXIS] = (real)gEKFOutput.corrAccel_B[Z_AXIS];
 }
 
+/* Extract the magnetometers corrected for hard and soft iron effects
+ */
+void EKF_GetCorrectedMags(real *CorrMags_B)
+{
+    CorrMags_B[X_AXIS] = (real)gEKFOutput.corrAccel_B[X_AXIS];
+    CorrMags_B[Y_AXIS] = (real)gEKFOutput.corrAccel_B[Y_AXIS];
+    CorrMags_B[Z_AXIS] = (real)gEKFOutput.corrAccel_B[Z_AXIS];
+
+}
 
 /* Extract the acceleration of the body (corrected for estimated
  * accelerometer-bias) measured in the body-frame (B).
