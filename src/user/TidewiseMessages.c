@@ -72,6 +72,23 @@ BOOL Fill_e4PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
         pld->angularVelocities[i] = (float)realData[i];
     }
 
+    EKF_GetCorrectedMags(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->magnetometers[i] = (float)realData[i];
+    }
+
+    EKF_GetMeasuredEulerAngles(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->measuredEulerAngles[i] = (float)realData[i];
+    }
+
+    if (EKF_GetMagneticDeclination(realData)) {
+        pld->magneticDeclination = (float)realData[0];
+    }
+    else {
+        pld->magneticDeclination = 0;
+    }
+
     pld->filterFlags = makeFilterFlags();
     return TRUE;
 }

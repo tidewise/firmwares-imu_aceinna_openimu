@@ -128,7 +128,7 @@ typedef struct {
 #define USR_OUT_SCALED1_PAYLOAD_LEN (52)
 #define USR_OUT_EKF1_PAYLOAD_LEN    (75)
 #define USR_OUT_EKF2_PAYLOAD_LEN    (123)
-#define USR_OUT_EKF4_PAYLOAD_LEN    (69)
+#define USR_OUT_EKF4_PAYLOAD_LEN    (TW_E4_SIZE)
 
 #define USER_OK      0x00
 #define USER_NAK     0x80

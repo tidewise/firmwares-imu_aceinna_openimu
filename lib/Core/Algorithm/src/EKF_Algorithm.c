@@ -26,6 +26,7 @@
 #include "UpdateFunctions.h"
 #include "TimingVars.h"
 
+#include "WorldMagneticModel.h"
 
 #ifndef INS_OFFLINE
 #ifdef DISPLAY_DIAGNOSTIC_MSG
@@ -468,6 +469,23 @@ void EKF_GetEstimatedLLA(double *LLA)
     LLA[Z_AXIS] = (double)gEKFOutput.llaDeg[Z_AXIS];
 }
 
+void EKF_GetMeasuredEulerAngles(real* angles)
+{
+    angles[YAW] = gKalmanFilter.measuredEulerAngles[YAW];
+    angles[PITCH] = gKalmanFilter.measuredEulerAngles[PITCH];
+    angles[ROLL] = gKalmanFilter.measuredEulerAngles[ROLL];
+}
+
+BOOL EKF_GetMagneticDeclination(real* decl_rad)
+{
+    if (gWorldMagModel.validSoln) {
+        *decl_rad = gWorldMagModel.decl_rad;
+        return TRUE;
+    }
+    else {
+        return FALSE;
+    }
+}
 
 /* Extract the Operational Mode of the Algorithm:
  *   0: Stabilize
