@@ -775,7 +775,7 @@ static void _UpdateProcessCovariance(void)
      * A scale factor 100 is added here. This is mainly for faster convergence
      * of the heading angle in the INS solution.
      */
-    if (gAlgorithm.state == INS_SOLUTION)
+    if (gAlgorithm.state == INS_SOLUTION && gAlgorithm.velocityAlwaysAlongBodyX)
     {
         tmpQMultiplier = 1.0f * multiplier_Q_Sq;
     }
