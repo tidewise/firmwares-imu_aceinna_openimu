@@ -15,6 +15,7 @@ typedef struct {
 
 typedef struct {
     uint32_t tstmp;
+    uint8_t  filterFlags;
     float    q[4];
     float    angularVelocities[3];
     float    velocity[3];
@@ -22,7 +23,6 @@ typedef struct {
     float    magnetometers[3];
     float    measuredEulerAngles[3];
     float    magneticDeclination;
-    uint8_t  filterFlags;
 }ekf4_payload_t;
 #pragma pack()
 
