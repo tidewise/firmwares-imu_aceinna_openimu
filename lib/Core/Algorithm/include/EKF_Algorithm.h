@@ -153,12 +153,16 @@ uint8_t InitINSFilter(void);
 void EKF_Algorithm(void);
 void enableFreeIntegration(BOOL enable);
 
+void EKF_GetMeasuredEulerAngles(real* angle);
+BOOL EKF_GetMagneticDeclination(real* decl_rad);
+
 // Getters for data extraction from the EKF output data structure
 void EKF_GetAttitude_EA(real *EulerAngles);
 void EKF_GetAttitude_EA_RAD(real *EulerAngles);
 void EKF_GetAttitude_Q(real *Quaternions);
 void EKF_GetCorrectedAngRates(real *CorrAngRates_B);
 void EKF_GetCorrectedAccels(real *CorrAccels_B);
+void EKF_GetCorrectedMags(real *CorrMags_B);
 void EKF_GetEstimatedAngRateBias(real *AngRateBias_B);
 void EKF_GetEstimatedAccelBias(real *AccelBias_B);
 void EKF_GetEstimatedPosition(real *Position_N);

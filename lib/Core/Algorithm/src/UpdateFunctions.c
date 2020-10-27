@@ -185,7 +185,7 @@ void EKF_UpdateStage(void)
             {
                 // GPS heading valid?
                 gAlgoStatus.bit.gpsHeadingValid = (gEKFInput.rawGroundSpeed >= LIMIT_MIN_GPS_VELOCITY_HEADING);
-                useGpsHeading = gAlgoStatus.bit.gpsHeadingValid;
+                useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
@@ -322,7 +322,7 @@ void ComputeSystemInnovation_Att(void)
         }
         
     }
-    else if ( magUsedInAlgorithm() && gAlgorithm.state <= LOW_GAIN_AHRS )
+    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
     {
         gKalmanFilter.nu[STATE_YAW]   = gKalmanFilter.measuredEulerAngles[YAW] -
                                         gKalmanFilter.eulerAngles[YAW];
@@ -332,7 +332,7 @@ void ComputeSystemInnovation_Att(void)
         gKalmanFilter.nu[STATE_YAW] = (real)0.0;
     }
     gKalmanFilter.nu[STATE_YAW] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_YAW]);
-    gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], gAlgorithm.Limit.Innov.attitudeError);
+    gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], SIX_DEGREES_IN_RAD*3);
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
      * attitude-errors used to update roll and pitch.
@@ -628,7 +628,7 @@ void _GenerateObservationCovariance_AHRS(void)
             gKalmanFilter.R[STATE_YAW] *= 10.0;
         }
     }
-    else if ( magUsedInAlgorithm() && gAlgorithm.state <= LOW_GAIN_AHRS )
+    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
     {
         // todo: need to further distinguish between if mag is used
         // MAGNETOMETERS
@@ -696,7 +696,7 @@ void _GenerateObservationCovariance_INS(void)
     gKalmanFilter.R[STATE_VX] = temp;// *((real)1.0 + fabs(gAlgorithm.filteredYawRate) * (real)RAD_TO_DEG);
     gKalmanFilter.R[STATE_VX] = gKalmanFilter.R[STATE_VX] * gKalmanFilter.R[STATE_VX];
     gKalmanFilter.R[STATE_VY] = gKalmanFilter.R[STATE_VX];
-    if (gAlgorithm.headingIni == HEADING_UNINITIALIZED)
+    if (!magUsedInAlgorithm() && gAlgorithm.headingIni == HEADING_UNINITIALIZED)
     {
         /* When heading is not initialized, velocity measurement is not able to correct 
          * attitude/rate bias/accel bias, the larger the velocity, the more uncertain it is.
@@ -1226,7 +1226,7 @@ static void Update_GPS(void)
     ComputeSystemInnovation_Att();
 
     // Initialize heading. If getting initial heading at this step, do not update att
-    if (gAlgorithm.headingIni < HEADING_GNSS_HIGH)
+    if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
     {
         if (InitializeHeadingFromGnss())
         {

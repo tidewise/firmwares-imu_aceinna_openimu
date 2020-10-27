@@ -26,6 +26,7 @@
 #include "UpdateFunctions.h"
 #include "TimingVars.h"
 
+#include "WorldMagneticModel.h"
 
 #ifndef INS_OFFLINE
 #ifdef DISPLAY_DIAGNOSTIC_MSG
@@ -405,6 +406,15 @@ void EKF_GetCorrectedAccels(real *CorrAccels_B)
     CorrAccels_B[Z_AXIS] = (real)gEKFOutput.corrAccel_B[Z_AXIS];
 }
 
+/* Extract the magnetometers corrected for hard and soft iron effects
+ */
+void EKF_GetCorrectedMags(real *CorrMags_B)
+{
+    CorrMags_B[X_AXIS] = (real)gEKFInput.magField_B[X_AXIS];
+    CorrMags_B[Y_AXIS] = (real)gEKFInput.magField_B[Y_AXIS];
+    CorrMags_B[Z_AXIS] = (real)gEKFInput.magField_B[Z_AXIS];
+
+}
 
 /* Extract the acceleration of the body (corrected for estimated
  * accelerometer-bias) measured in the body-frame (B).
@@ -459,6 +469,23 @@ void EKF_GetEstimatedLLA(double *LLA)
     LLA[Z_AXIS] = (double)gEKFOutput.llaDeg[Z_AXIS];
 }
 
+void EKF_GetMeasuredEulerAngles(real* angles)
+{
+    angles[YAW] = gKalmanFilter.measuredEulerAngles[YAW];
+    angles[PITCH] = gKalmanFilter.measuredEulerAngles[PITCH];
+    angles[ROLL] = gKalmanFilter.measuredEulerAngles[ROLL];
+}
+
+BOOL EKF_GetMagneticDeclination(real* decl_rad)
+{
+    if (gWorldMagModel.validSoln) {
+        *decl_rad = gWorldMagModel.decl_rad;
+        return TRUE;
+    }
+    else {
+        return FALSE;
+    }
+}
 
 /* Extract the Operational Mode of the Algorithm:
  *   0: Stabilize

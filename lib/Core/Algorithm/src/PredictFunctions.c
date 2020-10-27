@@ -157,7 +157,7 @@ void EKF_PredictionStage(real *filteredAccel)
     if ( magUsedInAlgorithm() )
     {
         // Transform the magnetic field vector from the body-frame to the plane normal to the gravity vector
-        if ( gAlgorithm.state == LOW_GAIN_AHRS )
+        if ( gAlgorithm.state >= LOW_GAIN_AHRS )
         {
             // Using predicted pitch and roll to project the mag measurement
             gKalmanFilter.measuredEulerAngles[YAW] =
@@ -181,8 +181,8 @@ void EKF_PredictionStage(real *filteredAccel)
     }
 
 
-    // Adjust for declination if the GPS signal is good
-    if( gAlgorithm.applyDeclFlag ) 
+    // Adjust for declination if we have declination data
+    if( gWorldMagModel.validSoln )
     {
         gKalmanFilter.measuredEulerAngles[YAW] = gKalmanFilter.measuredEulerAngles[YAW] +
                                                  gWorldMagModel.decl_rad;
@@ -775,7 +775,7 @@ static void _UpdateProcessCovariance(void)
      * A scale factor 100 is added here. This is mainly for faster convergence
      * of the heading angle in the INS solution.
      */
-    if (gAlgorithm.state == INS_SOLUTION)
+    if (gAlgorithm.state == INS_SOLUTION && gAlgorithm.velocityAlwaysAlongBodyX)
     {
         tmpQMultiplier = 1.0f * multiplier_Q_Sq;
     }
