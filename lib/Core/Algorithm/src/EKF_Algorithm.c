@@ -105,7 +105,7 @@ void EKF_Algorithm(void)
                                 gAlgorithm.Limit.linAccelSwitchDelay,
                                 &gImuStats);
         }
-        
+
         // Detect if the unit is static or dynamic
         DetectMotionFromAccel(gImuStats.accelNorm, 0);
         gAlgoStatus.bit.linearAccel = !gAlgorithm.linAccelSwitch;
@@ -141,7 +141,7 @@ void EKF_Algorithm(void)
              * EKF solution (including updates).
              */
             freeIntegrationCounter = freeIntegrationCounter + 1;   // [cycles]
-            if (freeIntegrationCounter >= gAlgorithm.Limit.Free_Integration_Cntr) 
+            if (freeIntegrationCounter >= gAlgorithm.Limit.Free_Integration_Cntr)
             {
                 freeIntegrationCounter = 0;
                 enableFreeIntegration(FALSE);
@@ -156,7 +156,7 @@ void EKF_Algorithm(void)
             gAlgorithm.state = LOW_GAIN_AHRS;
             gAlgorithm.stateTimer = gAlgorithm.Duration.Low_Gain_AHRS;
         }
-        else 
+        else
         {
             enableFreeIntegration(FALSE);
             freeIntegrationCounter = 0;
@@ -177,13 +177,13 @@ void EKF_Algorithm(void)
          * the attitude quaternion (prior to prediction at the new time-step)
          */
         QuaternionToR321(gKalmanFilter.quaternion, &gKalmanFilter.R_BinN[0][0]);
-        
+
         /* Euler angels are not calcualted here because it is used as a propagation resutls
          * to calculate system innovation. So, Euler angles are updated in the prediction
          * stage. In theory, Euler angles should be updated after each measurement update.
          * However, after EKF converges, it does not matter.
          */
-        
+
         // Update LLA
         if ((gAlgorithm.insFirstTime == FALSE))
         {
@@ -214,7 +214,7 @@ void EKF_Algorithm(void)
      * after the the above code-block to prevent the transition from occuring
      * until the next time step.
      */
-    switch( gAlgorithm.state ) 
+    switch( gAlgorithm.state )
     {
         case STABILIZE_SYSTEM:
             StabilizeSystem();
@@ -309,7 +309,7 @@ void enableFreeIntegration(BOOL enable)
 BOOL freeIntegrationEnabled()
 {
     return (BOOL)gAlgorithm.Behavior.bit.freeIntegrate;
-}   
+}
 
 void enableMagInAlgorithm(BOOL enable)
 {
@@ -569,7 +569,7 @@ void EKF_SetInputStruct(double *accels, double *rates, double *mags,
         gEKFInput.rawGroundSpeed = (real)sqrt(SQUARE(gps->vNed[0]) +
                                               SQUARE(gps->vNed[1]));// gps->rawGroundSpeed;
         gEKFInput.trueCourse = (real)gps->trueCourse;
-        
+
         /* Remove lever arm effects in LLA/Velocity. To do this requires transformation matrix
          * from the body frame to the NED frame. Before heading initialized, lever arm cannot
          * be correctly removed. After heading initialized, there would be position jump if
@@ -590,10 +590,10 @@ void EKF_SetInputStruct(double *accels, double *rates, double *mags,
             /* remove lever arm. Indeed, corrected angular rate should be used. Considering angular
              * bias is small, raw angular rate is used.
              */
-            RemoveLeverArm( gEKFInput.lla, 
-                            gEKFInput.vNed, 
-                            gEKFInput.angRate_B, 
-                            gAlgorithm.leverArmB, 
+            RemoveLeverArm( gEKFInput.lla,
+                            gEKFInput.vNed,
+                            gEKFInput.angRate_B,
+                            gAlgorithm.leverArmB,
                             &gKalmanFilter.Rn2e[0][0],
                             gKalmanFilter.rGPS_E);
 
@@ -732,9 +732,9 @@ uint8_t InitINSFilter(void)
      * resetting
      */
     // Save off the quaternion and rate-bias covariance values
-    for (rowNum = Q0; rowNum <= Q3 + Z_AXIS + 1; rowNum++) 
+    for (rowNum = Q0; rowNum <= Q3 + Z_AXIS + 1; rowNum++)
     {
-        for (colNum = Q0; colNum <= Q3 + Z_AXIS + 1; colNum++) 
+        for (colNum = Q0; colNum <= Q3 + Z_AXIS + 1; colNum++)
         {
             tmp[rowNum][colNum] = gKalmanFilter.P[rowNum + STATE_Q0][colNum + STATE_Q0];
         }
@@ -742,15 +742,15 @@ uint8_t InitINSFilter(void)
 
     // Reset P
     memset(gKalmanFilter.P, 0, sizeof(gKalmanFilter.P));
-    for (rowNum = 0; rowNum < NUMBER_OF_EKF_STATES; rowNum++) 
+    for (rowNum = 0; rowNum < NUMBER_OF_EKF_STATES; rowNum++)
     {
         gKalmanFilter.P[rowNum][rowNum] = (real)INIT_P_INS;
     }
 
     // Repopulate the P matrix with the quaternion and rate-bias values
-    for (rowNum = Q0; rowNum <= Q3 + Z_AXIS + 1; rowNum++) 
+    for (rowNum = Q0; rowNum <= Q3 + Z_AXIS + 1; rowNum++)
     {
-        for (colNum = Q0; colNum <= Q3 + Z_AXIS + 1; colNum++) 
+        for (colNum = Q0; colNum <= Q3 + Z_AXIS + 1; colNum++)
         {
             gKalmanFilter.P[rowNum + STATE_Q0][colNum + STATE_Q0] = tmp[rowNum][colNum];
         }
@@ -835,7 +835,7 @@ static void RemoveLeverArm(double *lla, double *vNed, real *w, real *leverArmB, 
     real sinLon_r = (real)sinLon;
     real cosLon_r = (real)cosLon;
 
-    // Form the transformation matrix from NED to ECEF 
+    // Form the transformation matrix from NED to ECEF
     // First row
     *(rn2e + 0 * 3 + 0) = -sinLat_r * cosLon_r;
     *(rn2e + 0 * 3 + 1) = -sinLon_r;
