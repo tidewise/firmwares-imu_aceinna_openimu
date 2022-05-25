@@ -487,6 +487,11 @@ BOOL EKF_GetMagneticDeclination(real* decl_rad)
     }
 }
 
+void EKF_GetGeoidAboveEllipsoid(real* offset)
+{
+    *offset = gEKFOutput.geoidAboveEllipsoid;
+}
+
 /* Extract the Operational Mode of the Algorithm:
  *   0: Stabilize
  *   1: Initialize
@@ -625,6 +630,8 @@ void EKF_SetOutputStruct(void)
     gEKFOutput.position_N[X_AXIS] = gKalmanFilter.Position_N[X_AXIS];
     gEKFOutput.position_N[Y_AXIS] = gKalmanFilter.Position_N[Y_AXIS];
     gEKFOutput.position_N[Z_AXIS] = gKalmanFilter.Position_N[Z_AXIS];
+
+    gEKFOutput.geoidAboveEllipsoid = gEKFInput.geoidAboveEllipsoid;
 
     // Velocity in [m/s]
     gEKFOutput.velocity_N[X_AXIS] = gKalmanFilter.Velocity_N[X_AXIS];
