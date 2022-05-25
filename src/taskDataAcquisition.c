@@ -63,8 +63,8 @@ void TaskDataAcquisition(void const *argument)
     // Initialize user algorithm parameters, if needed
     initUserDataProcessingEngine();
     // set the mag align scale factors
-    InitMagAlignParams();   
-    // Start sensors data acquisition 
+    InitMagAlignParams();
+    // Start sensors data acquisition
     DataAquisitionStart();
 
     // Set the sampling frequency of data acquisition task
@@ -84,19 +84,19 @@ void TaskDataAcquisition(void const *argument)
     {
         // *****************************************************************
         // NOTE: This task loop runs at 100 or 200 Hz (default 200 Hz)
-        //       user can choose period of this task by 
+        //       user can choose period of this task by
         // *****************************************************************
         // Handle Timing vard, watchdog and BIT
         PrepareToNewDacqTick();
-        //  Wait for next tick 
+        //  Wait for next tick
         // Upon timeout of TIM5 (or user sync), let the process continue
-        
+
         res = osSemaphoreWait(dataAcqSem, 1000);
         if(res != osOK){
             // Wait timeout expired. Something wrong wit the dacq system
             // Process timeout here
         }
-        
+
         // inform user, that new data set is being prepared (if required)
         // in case of SPI communication interface sets pin DRDY high
         // in case of UART communication interface sets pin IO2 high
@@ -113,7 +113,7 @@ void TaskDataAcquisition(void const *argument)
         //
         //       Select_LP_filter(rawSensor_e sensorType, eFilterType filterType)
         //
-        //   Refer to UserConfiguration.c for implementation and to the enumerator structure 
+        //   Refer to UserConfiguration.c for implementation and to the enumerator structure
         //   'eFilterType' in file filter.h for available selections.
         //
         //   Low pass filtering is followed by application of the unit calibration parameters
@@ -125,18 +125,18 @@ void TaskDataAcquisition(void const *argument)
         GetSensorsData();
 
         // Check if sensors data over range
-        // If overRange is TRUE - limit values are put into sensors data based 
-        // on chosen sensors sensitivity 
-        overRange = handleOverRange();          
+        // If overRange is TRUE - limit values are put into sensors data based
+        // on chosen sensors sensitivity
+        overRange = handleOverRange();
 
         // *****************************************************************
         // At this point sensors data is in next units
-        // Acceleration - g's 
+        // Acceleration - g's
         // Rates        - rad/s
         // Magnetometer - Gauss
         // Temperature  - degrees C
         //******************************************************************
-        
+
         // BIT status. May have inadvertently changed this during an update.
         updateBITandStatus();
 
@@ -150,7 +150,7 @@ void TaskDataAcquisition(void const *argument)
         //   and output.  Use 'is100Hz' variable to determine the rate of this task
         //   loop.
         inertialAndPositionDataProcessing(dacqRate);
-        
+
         // Uncomment next line if there is intention of using S0 or S1 xbow
         //   packets for continuous data output
         //*****************************************************************
@@ -180,7 +180,7 @@ void TaskDataAcquisition(void const *argument)
             // Process commands and output continuous packets to UART
             // Processing of user commands always goes first
             ProcessUserCommands ();
-            int rate = fAlgorithmSynced? 0: dacqRate; 
+            int rate = fAlgorithmSynced? 0: dacqRate;
             SendContinuousPacket(rate);
         }
     }

@@ -36,7 +36,7 @@ typedef struct {
     real P[NUMBER_OF_EKF_STATES][NUMBER_OF_EKF_STATES];
     real Q[NUMBER_OF_EKF_STATES];
     real Qq[6]; /* The process cov matrix of quaternion should be 4x4.
-                 * Its 4 diagonal terms are stored in Q. 
+                 * Its 4 diagonal terms are stored in Q.
                  * Its off-diagonol terms are stored in Qq. Because the matrix
                  * is symmetric, only 6 off-diagonal terms need stored.
                  */
@@ -130,7 +130,7 @@ typedef struct {
     double            quaternion_BinN[4];
     double            angRateBias_B[NUM_AXIS];
     double            accelBias_B[NUM_AXIS];
-    
+
     double            llaDeg[NUM_AXIS];
 
     // Derived variables
