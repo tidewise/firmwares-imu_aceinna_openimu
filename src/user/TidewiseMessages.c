@@ -57,6 +57,10 @@ BOOL Fill_e4PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
         pld->pos[i] = dData[i];
     }
 
+    real geoid2ellipsoid;
+    EKF_GetGeoidAboveEllipsoid(&geoid2ellipsoid);
+    pld->pos[2] -= geoid2ellipsoid;
+
     EKF_GetAttitude_Q(realData);
     for (int i = 0; i < 4; ++i) {
         pld->q[i] = (float)realData[i];

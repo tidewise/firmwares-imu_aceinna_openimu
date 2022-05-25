@@ -126,6 +126,7 @@ extern EKF_InputDataStruct gEKFInput;
 typedef struct {
     // Algorithm states (15 states)
     double            position_N[NUM_AXIS];
+    double            geoidAboveEllipsoid;
     double            velocity_N[NUM_AXIS];
     double            quaternion_BinN[4];
     double            angRateBias_B[NUM_AXIS];
@@ -155,6 +156,7 @@ void enableFreeIntegration(BOOL enable);
 
 void EKF_GetMeasuredEulerAngles(real* angle);
 BOOL EKF_GetMagneticDeclination(real* decl_rad);
+void EKF_GetGeoidAboveEllipsoid(real* offset);
 
 // Getters for data extraction from the EKF output data structure
 void EKF_GetAttitude_EA(real *EulerAngles);
