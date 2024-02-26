@@ -492,6 +492,39 @@ void EKF_GetGeoidAboveEllipsoid(real* offset)
     *offset = gEKFOutput.geoidAboveEllipsoid;
 }
 
+/* Diagonal of the position covariance, 3 values */
+void EKF_GetPositionCovariance(real* values) {
+    values[0] = gKalmanFilter.Q[0];
+    values[1] = gKalmanFilter.Q[1];
+    values[2] = gKalmanFilter.Q[2];
+}
+
+/* Diagonal of the velocity covariance, 3 values */
+void EKF_GetVelocityCovariance(real* values) {
+    values[0] = gKalmanFilter.Q[3];
+    values[1] = gKalmanFilter.Q[4];
+    values[2] = gKalmanFilter.Q[5];
+}
+
+/* Upper part of the quaternion process covariance matrix, stored row-major
+ *
+ * It fills 10 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetQuaternionCovariance(real* values) {
+    values[0] = gKalmanFilter.Q[6];
+    values[1] = gKalmanFilter.Qq[0];
+    values[2] = gKalmanFilter.Qq[1];
+    values[3] = gKalmanFilter.Qq[2];
+    values[4] = gKalmanFilter.Q[7];
+    values[5] = gKalmanFilter.Qq[3];
+    values[6] = gKalmanFilter.Qq[4];
+    values[7] = gKalmanFilter.Q[8];
+    values[8] = gKalmanFilter.Qq[5];
+    values[9] = gKalmanFilter.Q[9];
+}
+
 /* Extract the Operational Mode of the Algorithm:
  *   0: Stabilize
  *   1: Initialize
