@@ -39,9 +39,9 @@ typedef struct {
     float    magneticDeclination;
 
     float    accelerations[3];
-    float    covOrientation[3];
-    float    covAngularVelocities[3];
-    float    covVelocities[3];
+    float    covPosition[3];
+    float    covVelocity[3];
+    float    covQuaternion[10];
 
     float temperature_C;
 }ekf5_payload_t;

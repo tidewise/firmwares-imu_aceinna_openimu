@@ -156,6 +156,10 @@ BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
     GetBoardTempData(dData);
     pld->temperature_C = dData[0];
 
+    EKF_GetPositionCovariance(pld->covPosition);
+    EKF_GetVelocityCovariance(pld->covVelocity);
+    EKF_GetQuaternionCovariance(pld->covQuaternion);
+
     pld->filterFlags = makeFilterFlags();
     return TRUE;
 }
