@@ -108,6 +108,7 @@ usr_packet_t userOutputPackets[] = {
     {USR_OUT_EKF1,              "e1"},
     {USR_OUT_EKF2,              "e2"},
     {USR_OUT_EKF4,              "e4"},
+    {USR_OUT_EKF5,              "e5"},
     {USR_OUT_MAX,               {0xff, 0xff}},   //  ""
 };
 
@@ -223,7 +224,11 @@ BOOL setUserPacketType(uint8_t *data, BOOL fApply)
             break;
         case USR_OUT_EKF4: // packet with EKF algorithm data
             _outputPacketType = type;
-            _userPayloadLen   = USR_OUT_EKF2_PAYLOAD_LEN;
+            _userPayloadLen   = USR_OUT_EKF4_PAYLOAD_LEN;
+            break;
+        case USR_OUT_EKF5: // packet with EKF algorithm data
+            _outputPacketType = type;
+            _userPayloadLen   = USR_OUT_EKF5_PAYLOAD_LEN;
             break;
         default:
             result = FALSE;

@@ -48,7 +48,8 @@ typedef struct {
 #pragma pack()
 
 #define TW_STATE_SIZE 11
-#define TW_E4_SIZE 97
+#define TW_E4_SIZE sizeof(ekf4_payload_t)
+#define TW_E5_SIZE sizeof(ekf5_payload_t)
 
 BOOL Fill_IMUStatePacketPayload(uint8_t *payload, uint8_t *payloadLen);
 BOOL Fill_e4PacketPayload(uint8_t *payload, uint8_t *payloadLen);

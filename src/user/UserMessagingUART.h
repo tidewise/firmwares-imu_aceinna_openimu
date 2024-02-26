@@ -25,6 +25,7 @@ limitations under the License.
 
 #include "GlobalConstants.h"
 #include "ucb_packet_struct.h"
+#include "TidewiseMessages.h"
 
 #define USER_PACKET_OK      0
 #define UNKNOWN_USER_PACKET 1
@@ -85,6 +86,7 @@ typedef enum {
     USR_OUT_EKF1,
     USR_OUT_EKF2,
     USR_OUT_EKF4,
+    USR_OUT_EKF5,
     USR_OUT_MAX
 } UserOutPacketType;
 
@@ -129,6 +131,9 @@ typedef struct {
 #define USR_OUT_EKF1_PAYLOAD_LEN    (75)
 #define USR_OUT_EKF2_PAYLOAD_LEN    (123)
 #define USR_OUT_EKF4_PAYLOAD_LEN    (TW_E4_SIZE)
+_Static_assert(USR_OUT_EKF4_PAYLOAD_LEN < 255, "E4 message is above message size limit");
+#define USR_OUT_EKF5_PAYLOAD_LEN    (TW_E5_SIZE)
+_Static_assert(USR_OUT_EKF5_PAYLOAD_LEN < 255, "E5 message is above message size limit");
 
 #define USER_OK      0x00
 #define USER_NAK     0x80
