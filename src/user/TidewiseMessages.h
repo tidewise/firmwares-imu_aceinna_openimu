@@ -24,6 +24,27 @@ typedef struct {
     float    measuredEulerAngles[3];
     float    magneticDeclination;
 }ekf4_payload_t;
+
+typedef struct {
+    uint32_t tstmp;
+    uint8_t  filterFlags;
+
+    float    q[4];
+    float    angularVelocities[3];
+    float    velocity[3];
+    double   pos[3];
+
+    float    magnetometers[3];
+    float    measuredEulerAngles[3];
+    float    magneticDeclination;
+
+    float    accelerations[3];
+    float    covOrientation[3];
+    float    covAngularVelocities[3];
+    float    covVelocities[3];
+
+    float temperature_C;
+}ekf5_payload_t;
 #pragma pack()
 
 #define TW_STATE_SIZE 11
