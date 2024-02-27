@@ -42,8 +42,9 @@ typedef struct {
     float    magneticDeclination;
 
     float    accelerations[3];
-    float    covPosition[3];
-    float    covVelocity[3];
+
+    float    covPosition[6];
+    float    covVelocity[6];
     float    covQuaternion[10];
 }ekf5_payload_t;
 #pragma pack()

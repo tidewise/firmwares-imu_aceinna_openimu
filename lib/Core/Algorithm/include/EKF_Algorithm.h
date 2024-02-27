@@ -158,13 +158,17 @@ void EKF_GetMeasuredEulerAngles(real* angle);
 BOOL EKF_GetMagneticDeclination(real* decl_rad);
 void EKF_GetGeoidAboveEllipsoid(real* offset);
 
-/* Diagonal of the position covariance, 3 values */
-void EKF_GetPositionCovariance(real* values);
-/* Diagonal of the velocity covariance, 3 values */
-void EKF_GetVelocityCovariance(real* values);
-/* Upper part of the quaternion process covariance matrix, stored row-major
+/* Triangle of the position covariance, 6 values
  *
- * It fills 10 values
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetPositionCovariance(real* values);
+/* Triangle of the velocity covariance, 6 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetVelocityCovariance(real* values);
+/* Triangle of the quaternion covariance, 10 values
  *
  * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
  */
