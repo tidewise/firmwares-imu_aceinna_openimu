@@ -181,6 +181,7 @@ void EKF_GetEstimatedAngRateBias(real *AngRateBias_B);
 void EKF_GetEstimatedAccelBias(real *AccelBias_B);
 void EKF_GetEstimatedPosition(real *Position_N);
 void EKF_GetEstimatedVelocity(real *Velocity_N);
+/* Estimated latitude (deg), longitude (deg) and altitude (m) */
 void EKF_GetEstimatedLLA(double *LLA);
 
 void EKF_GetOperationalMode(uint8_t *EKF_OperMode);
