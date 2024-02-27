@@ -108,8 +108,8 @@ BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
     pld->tstmp   = platformGetIMUCounter();
 
     EKF_GetEstimatedLLA(dData);
-    pld->latitudeRad = dData[0];
-    pld->longitudeRad = dData[1];
+    pld->latitudeRad = dData[0] * DEG_TO_RAD;
+    pld->longitudeRad = dData[1] * DEG_TO_RAD;
     pld->altitude = dData[2];
 
     real geoid2ellipsoid;
@@ -128,7 +128,7 @@ BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
 
     EKF_GetCorrectedAngRates(realData);
     for(int i = 0; i < NUM_AXIS; i++){
-        pld->angularVelocities[i] = (float)realData[i];
+        pld->angularVelocities[i] = (float)realData[i] * DEG_TO_RAD;
     }
 
     EKF_GetCorrectedMags(realData);
