@@ -28,6 +28,7 @@ typedef struct {
 typedef struct {
     uint32_t tstmp;
     uint8_t  filterFlags;
+    int8_t temperature_C;
 
     float    q[4];
     float    angularVelocities[3];
@@ -44,8 +45,6 @@ typedef struct {
     float    covPosition[3];
     float    covVelocity[3];
     float    covQuaternion[10];
-
-    float temperature_C;
 }ekf5_payload_t;
 #pragma pack()
 
