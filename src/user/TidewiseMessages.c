@@ -108,13 +108,13 @@ BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
     pld->tstmp   = platformGetIMUCounter();
 
     EKF_GetEstimatedLLA(dData);
-    for(int i = 0; i < NUM_AXIS; i++){
-        pld->pos[i] = dData[i];
-    }
+    pld->latitudeRad = dData[0];
+    pld->longitudeRad = dData[1];
+    pld->altitude = dData[2];
 
     real geoid2ellipsoid;
     EKF_GetGeoidAboveEllipsoid(&geoid2ellipsoid);
-    pld->pos[2] -= geoid2ellipsoid;
+    pld->altitude -= geoid2ellipsoid;
 
     EKF_GetAttitude_Q(realData);
     for (int i = 0; i < 4; ++i) {

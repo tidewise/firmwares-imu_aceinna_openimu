@@ -32,7 +32,9 @@ typedef struct {
     float    q[4];
     float    angularVelocities[3];
     float    velocity[3];
-    double   pos[3];
+    double   latitudeRad;
+    double   longitudeRad;
+    float    altitude;
 
     float    magnetometers[3];
     float    measuredEulerAngles[3];
