@@ -567,6 +567,15 @@ BOOL HandleUserOutputPacket(uint8_t *payload, uint8_t *payloadLen)
             }
             break;
 
+        case USR_OUT_EKF5:
+            {
+                // Variables used to hold the EKF values
+                uint8_t len;
+                Fill_e5PacketPayload(payload, &len);
+                *payloadLen = len;
+            }
+            break;
+
         // place additional user packet preparing calls here
         // case USR_OUT_XXXX:
         //      *payloadLen = YYYY; // total user payload length, including user packet type

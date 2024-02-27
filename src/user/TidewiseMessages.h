@@ -54,5 +54,6 @@ typedef struct {
 
 BOOL Fill_IMUStatePacketPayload(uint8_t *payload, uint8_t *payloadLen);
 BOOL Fill_e4PacketPayload(uint8_t *payload, uint8_t *payloadLen);
+BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen);
 
 #endif
