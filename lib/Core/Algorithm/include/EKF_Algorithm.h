@@ -158,6 +158,22 @@ void EKF_GetMeasuredEulerAngles(real* angle);
 BOOL EKF_GetMagneticDeclination(real* decl_rad);
 void EKF_GetGeoidAboveEllipsoid(real* offset);
 
+/* Triangle of the position covariance, 6 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetPositionCovariance(real* values);
+/* Triangle of the velocity covariance, 6 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetVelocityCovariance(real* values);
+/* Triangle of the quaternion covariance, 10 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetQuaternionCovariance(real* values);
+
 // Getters for data extraction from the EKF output data structure
 void EKF_GetAttitude_EA(real *EulerAngles);
 void EKF_GetAttitude_EA_RAD(real *EulerAngles);
@@ -169,6 +185,7 @@ void EKF_GetEstimatedAngRateBias(real *AngRateBias_B);
 void EKF_GetEstimatedAccelBias(real *AccelBias_B);
 void EKF_GetEstimatedPosition(real *Position_N);
 void EKF_GetEstimatedVelocity(real *Velocity_N);
+/* Estimated latitude (deg), longitude (deg) and altitude (m) */
 void EKF_GetEstimatedLLA(double *LLA);
 
 void EKF_GetOperationalMode(uint8_t *EKF_OperMode);

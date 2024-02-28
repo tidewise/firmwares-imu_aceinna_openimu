@@ -1,3 +1,4 @@
 {
-    "editor.trimAutoWhitespace": false
+    "editor.trimAutoWhitespace": false,
+    "editor.formatOnSave": false
 }
