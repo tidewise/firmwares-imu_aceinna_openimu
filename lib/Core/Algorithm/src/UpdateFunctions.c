@@ -639,18 +639,18 @@ void _GenerateObservationCovariance_AHRS(void)
             gKalmanFilter.R[STATE_YAW] = (real)1.0e-2;  // jun4
         } else {
             // --- Low-Gain ---
-            gKalmanFilter.R[STATE_YAW]   = (real)1.0e-1; // v14.6 values
+            gKalmanFilter.R[STATE_YAW]   = (real)1.0e-2; // v14.6 values
         }
 
         /* For 'large' roll/pitch angles, increase R-yaw to decrease the effect
          * of update due to potential uncompensated z-axis magnetometer
          * readings from affecting the yaw-update.
          */
-        //if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
-        //    ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
-        //{
-        //    gKalmanFilter.R[STATE_YAW] = (real)0.2;
-        //}
+        if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
+            ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
+        {
+            gKalmanFilter.R[STATE_YAW] = (real)2.0e-2;
+        }
     }
     else
     {
