@@ -646,11 +646,11 @@ void _GenerateObservationCovariance_AHRS(void)
          * of update due to potential uncompensated z-axis magnetometer
          * readings from affecting the yaw-update.
          */
-        if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
-            ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
-        {
-            gKalmanFilter.R[STATE_YAW] = (real)2.0e-2;
-        }
+        // if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
+        //     ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
+        // {
+        //     gKalmanFilter.R[STATE_YAW] = (real)1.0e-2;
+        // }
     }
     else
     {
