@@ -575,9 +575,9 @@ void EKF_SetInputStruct(double *accels, double *rates, double *mags,
     gEKFInput.magField_B[Z_AXIS] = (real)mags[Z_AXIS];
     real tmp[2];
     tmp[X_AXIS] = gEKFInput.magField_B[X_AXIS] - gMagAlign.hardIronBias[X_AXIS];
-    tmp[Z_AXIS] = gEKFInput.magField_B[Z_AXIS] - gMagAlign.hardIronBias[Z_AXIS];
-    gEKFInput.magField_B[X_AXIS] = gMagAlign.SF[0] * tmp[X_AXIS] + gMagAlign.SF[1] * tmp[Z_AXIS];
-    gEKFInput.magField_B[Z_AXIS] = gMagAlign.SF[2] * tmp[X_AXIS] + gMagAlign.SF[3] * tmp[Z_AXIS];
+    tmp[Y_AXIS] = gEKFInput.magField_B[Y_AXIS] - gMagAlign.hardIronBias[Y_AXIS];
+    gEKFInput.magField_B[X_AXIS] = gMagAlign.SF[0] * tmp[X_AXIS] + gMagAlign.SF[1] * tmp[Y_AXIS];
+    gEKFInput.magField_B[Y_AXIS] = gMagAlign.SF[2] * tmp[X_AXIS] + gMagAlign.SF[3] * tmp[Y_AXIS];
 
     // ----- Input from the GPS goes here -----
     gEKFInput.gpsUpdate = gps->gpsUpdate;
