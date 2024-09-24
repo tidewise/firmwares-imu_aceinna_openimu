@@ -61,6 +61,7 @@ const UserConfigurationStruct gDefaultUserConfig = {
     .pointOfInterestBx   = 0.0,
     .pointOfInterestBy   = 0.0,
     .pointOfInterestBz   = 0.0,
+    .rtkHeading2magHeading = NAN,
 };
 
 UserConfigurationStruct gUserConfiguration;
@@ -242,6 +243,12 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
                          (real)gUserConfiguration.leverArmBz );
             result = TRUE;
             break;   
+        case USER_RTK_HEADING2MAG_HEADING:
+            tmp = (double*) &data;
+            gUserConfiguration.rtkHeading2magHeading = *tmp;
+            setRTKHeading2MAGHeading((real) gUserConfiguration.rtkHeading2magHeading);
+            result = TRUE;
+            break;
         // case USER_XXX_OFFSET:  add function calls here if parameter XXXX
         //                        required be updated on the fly and/or validated
         //             break;
