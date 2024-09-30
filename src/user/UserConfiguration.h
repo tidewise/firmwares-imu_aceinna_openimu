@@ -100,6 +100,7 @@ typedef struct {
     double pointOfInterestBx;
     double pointOfInterestBy;
     double pointOfInterestBz;
+    double rtkHeading2magHeading; // [deg]
 } UserConfigurationStruct;
 
 typedef enum {
@@ -128,6 +129,7 @@ typedef enum {
     USER_POINT_OF_INTEREST_BX         ,
     USER_POINT_OF_INTEREST_BY         ,
     USER_POINT_OF_INTEREST_BZ         ,
+    USER_RTK_HEADING2MAG_HEADING      ,
     USER_MAX_PARAM
 } UserConfigParamNumber;
 

@@ -208,6 +208,8 @@ typedef struct {
     real leverArmB[3];					// Antenna position w.r.t IMU in vehicle body frame
     real pointOfInterestB[3];			// Point of interest position w.r.t IMU in vehicle body frame
 
+    real rtkHeading2magHeading;
+
     BOOL velocityAlwaysAlongBodyX;      // enable zero velocity update
 
     IMU_SPEC imuSpec;                   // IMU specifications

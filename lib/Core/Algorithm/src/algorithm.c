@@ -125,6 +125,8 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     gAlgorithm.pointOfInterestB[Y_AXIS] = 0.0;
     gAlgorithm.pointOfInterestB[Z_AXIS] = 0.0;
 
+    gAlgorithm.rtkHeading2magHeading = NAN;
+
     // For most vehicles, the velocity is always along the body x axis
     gAlgorithm.velocityAlwaysAlongBodyX = TRUE;
 
@@ -211,6 +213,11 @@ void setPointOfInterest( real poiBx, real poiBy, real poiBz )
     gAlgorithm.pointOfInterestB[0] = poiBx;
     gAlgorithm.pointOfInterestB[1] = poiBy;
     gAlgorithm.pointOfInterestB[2] = poiBz;
+}
+
+void setRTKHeading2MAGHeading(real rtkHeading2magHeading)
+{
+    gAlgorithm.rtkHeading2magHeading = rtkHeading2magHeading;
 }
 
 void UpdateImuSpec(real rwOdr, real arw, real biw, real maxBiasW,
