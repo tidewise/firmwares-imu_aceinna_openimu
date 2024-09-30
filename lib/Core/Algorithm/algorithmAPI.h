@@ -109,7 +109,7 @@ void setPointOfInterest( real poiBx, real poiBy, real poiBz );
 /******************************************************************************
  * @name setRTKHeading2MAGHeading
  * @brief Set the offset between rtk heading and magnetometer
- * @param [in] rtkHeading2magHeading: the offset in degrees
+ * @param [in] rtkHeading2magHeading: the offset in radians
  ****************************************************************************/
 void setRTKHeading2MAGHeading(real rtkHeading2magHeading);
 

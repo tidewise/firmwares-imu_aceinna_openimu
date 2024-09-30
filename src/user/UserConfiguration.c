@@ -246,7 +246,7 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
         case USER_RTK_HEADING2MAG_HEADING:
             tmp = (double*) &data;
             gUserConfiguration.rtkHeading2magHeading = *tmp;
-            setRTKHeading2MAGHeading((real) gUserConfiguration.rtkHeading2magHeading);
+            setRTKHeading2MAGHeading((real) D2R * gUserConfiguration.rtkHeading2magHeading);
             result = TRUE;
             break;
         // case USER_XXX_OFFSET:  add function calls here if parameter XXXX
