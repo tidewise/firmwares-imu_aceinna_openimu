@@ -309,6 +309,10 @@ void GetGPSData(gpsDataStruct_t *data)
         data->GPSHorizAcc       = gGpsDataPtr->GPSHorizAcc;
         data->GPSVertAcc        = gGpsDataPtr->GPSVertAcc;
         data->geoidAboveEllipsoid = gGpsDataPtr->geoidAboveEllipsoid;
+
+        data->rtkHeadingData.valid = gGpsData.movingBaseRTKValid;
+        data->rtkHeadingData.heading = gGpsData.relPosHeading * D2R;
+        data->rtkHeadingData.headingAccuracy = gGpsData.accRelPosHeading * D2R;
     }
 }
 
