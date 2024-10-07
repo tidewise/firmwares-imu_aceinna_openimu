@@ -109,6 +109,7 @@ typedef struct {
     uint8_t numSatellites;          /* Num of satellites in this GNSS measurement.
                                      * This is valid only when there is gps udpate.
                                      */
+    rtkHeadingStruct_t rtkHeading;
     BOOL gpsUpdate;                 // Indicate if GNSS measurement is updated.
 
     // odometer

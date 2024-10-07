@@ -54,6 +54,12 @@ void TaskGps(void const *argument);
 #define MANUAL      7   // Manual Input Mode (will be considered as INVALID)
 #define SIMULATION  8   // Simulation Mode (will be considered as INVALID)
 
+typedef struct {
+    uint8_t valid;
+    float   heading;
+    float   headingAccuracy;
+} rtkHeadingStruct_t;
+
 typedef struct  {
     uint8_t     gpsFixType;     // 1 if data is valid
     uint8_t     gpsUpdate;      // 1 if contains new data
@@ -79,6 +85,9 @@ typedef struct  {
     float       GPSHorizAcc, GPSVertAcc;
     float       HDOP;
     float       geoidAboveEllipsoid;    // [m] Height of geoid (mean sea level) above WGS84 ellipsoid
+
+    rtkHeadingStruct_t rtkHeadingData;
+
 } gpsDataStruct_t;
 
 extern gpsDataStruct_t gGPS, gCanGps;
