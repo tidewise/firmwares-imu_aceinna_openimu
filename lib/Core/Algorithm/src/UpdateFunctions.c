@@ -350,7 +350,7 @@ void ComputeSystemInnovation_Att(void)
         gKalmanFilter.nu[STATE_YAW] = (real)0.0;
     }
     gKalmanFilter.nu[STATE_YAW] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_YAW]);
-    gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], SIX_DEGREES_IN_RAD*3);
+    gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], gAlgorithm.Limit.Innov.attitudeError);
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
      * attitude-errors used to update roll and pitch.
@@ -668,11 +668,11 @@ void _GenerateObservationCovariance_AHRS(void)
          * of update due to potential uncompensated z-axis magnetometer
          * readings from affecting the yaw-update.
          */
-        //if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
-        //    ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
-        //{
-        //    gKalmanFilter.R[STATE_YAW] = (real)0.2;
-        //}
+        if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
+            ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
+        {
+            gKalmanFilter.R[STATE_YAW] = (real)0.2;
+        }
     }
     else
     {
