@@ -1267,8 +1267,7 @@ static void Update_GPS(void)
     if(!isnan(gAlgorithm.rtkHeading2magHeading) && gAlgorithm.headingIni < HEADING_RTK){
         if(InitializeHeadingFromRTK()){
             // Heading is initialized. Related elements in the EKF also need intializing.
-            InitializeEkfHeading(gEKFInput.rtkHeading.heading +
-                                    gAlgorithm.rtkHeading2magHeading,
+            InitializeEkfHeading(gEKFInput.rtkHeading.heading,
                                  gEKFInput.rtkHeading.headingAccuracy);
 
             /* This heading measurement is used to initialize heading, and should not be
