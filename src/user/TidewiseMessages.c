@@ -7,7 +7,7 @@
 #include "WorldMagneticModel.h"
 
 static uint8_t makeFilterFlags() {
-    uint8_t opMode, linAccelSw, turnSw;
+    uint8_t opMode, linAccelSw, turnSw, rtkHeading;
     EKF_GetOperationalMode(&opMode);
     EKF_GetOperationalSwitches(&linAccelSw, &turnSw);
 
@@ -17,6 +17,11 @@ static uint8_t makeFilterFlags() {
     }
     if (turnSw) {
         flags |= 16;
+    }
+
+    EKF_GetRTKHeadingUse(&rtkHeading) ;
+    if(rtkHeading){
+        flags |= 32;
     }
 
     return flags;

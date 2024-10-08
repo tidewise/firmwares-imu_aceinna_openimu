@@ -10,6 +10,8 @@
 
 #include <stdint.h>
 
+#include "algorithm.h"
+
 #include "GlobalConstants.h"
 #include "StateIndices.h"
 
@@ -144,6 +146,8 @@ typedef struct {
     uint8_t           opMode;
     uint8_t           turnSwitchFlag;
     uint8_t           linAccelSwitch;
+
+    AlgoStatus        status; // see struct ALGO_STATUS_BITS
 } EKF_OutputDataStruct;
 
 extern EKF_OutputDataStruct gEKFOutput;
@@ -191,6 +195,7 @@ void EKF_GetEstimatedLLA(double *LLA);
 
 void EKF_GetOperationalMode(uint8_t *EKF_OperMode);
 void EKF_GetOperationalSwitches(uint8_t *EKF_LinAccelSwitch, uint8_t *EKF_TurnSwitch);
+void EKF_GetRTKHeadingUse(uint8_t* rtkHeading);
 
 // Setter functions
 void EKF_SetInputStruct(double *accels, double *rates, double *mags,
