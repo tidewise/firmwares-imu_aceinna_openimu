@@ -125,7 +125,8 @@ struct ALGO_STATUS_BITS
                                          * This will become FALSE when PPS has not been detected for more than 2sec.
                                          * This will become FALSE when GNSS measurement is refrshed and used.
                                          */
-	uint16_t rsvd : 7;                  // 9:15
+    uint16_t usingRTKHeading: 1;        // 9 if rtk is being used as heading source
+	uint16_t rsvd : 6;                  // 10:15
 };
 
 typedef union ALGO_STATUS
