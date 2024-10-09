@@ -100,7 +100,7 @@ typedef struct {
     double pointOfInterestBx;
     double pointOfInterestBy;
     double pointOfInterestBz;
-    double rtkHeading2magHeading; // [deg]
+    double rtkHeading2magHeading; // [rad]
 } UserConfigurationStruct;
 
 typedef enum {
