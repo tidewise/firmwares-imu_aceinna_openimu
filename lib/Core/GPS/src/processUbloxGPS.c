@@ -144,6 +144,8 @@ void (*pt2TmpFunc1)(ubloxIDTypeSTRUCT *cfgID, GpsData_t *GPSData);
 
 void decodeNavPvt(char *msg, GpsData_t *GPSData);
 
+void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData);
+
 /** ****************************************************************************
  * @name configUbloxGPSReceiver LOCAL NOT CALLED configure ublox GPS receiver
  * @brief All GPS receiver configuration commands should be sent here if needed.
@@ -340,6 +342,9 @@ void processUbloxBinaryMessage(char          *msg,
             GPSData->updateFlagForEachCall |= (1 << GOT_UBLOX_NAVSBAS);
             GPSData->SBASCounter++;
 		break;
+        case UBLOX_NAV_RELPOSNED:
+            extractHeadingFromRelPosNed(msg + UBLOX_BINAERY_HEADER_LEN, GPSData);
+            break;
 		case UBLOX_ACK_ACK:	///ACK message
             GPSData->reClassID = msg[6];
             GPSData->reMsgID   = msg[7];
@@ -491,6 +496,22 @@ void decodeNavPvt(char *msg, GpsData_t *GPSData)
     // update flag
     GPSData->updateFlagForEachCall |= 1 << GOT_GGA_MSG;
     GPSData->updateFlagForEachCall |= 1 << GOT_VTG_MSG;
+}
+
+void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
+    int relPosHeading = *( (int *) msg + 24 );
+    GPSData->relPosHeading = relPosHeading * 1e-5;
+
+    unsigned int accRelPosHeading = *( (unsigned int*) msg + 52 );
+    GPSData->accRelPosHeading = accRelPosHeading * 1e-5;
+
+    // Here I don't really know if these are the only flags I should look for.
+    // For now it is just a guess of mine
+    unsigned int flags = * ( (unsigned int*) msg + 60);
+    bool gnssFixOK = flags & 0x01;
+    bool rtkFixedSolution = (flags >> 3) & 0x03 == 0x02;
+    bool relPosHeadingValid = (flags >> 8) & 0x01;
+    GPSData->movingBaseRTKValid = gnssFixOK && rtkFixedSolution && relPosHeadingValid;
 }
 
 /** ****************************************************************************

@@ -97,3 +97,70 @@ BOOL Fill_e4PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
     return TRUE;
 }
 
+BOOL Fill_e5PacketPayload(uint8_t *payload, uint8_t *payloadLen) {
+    ekf5_payload_t *pld = (ekf5_payload_t *)payload;
+    *payloadLen  = sizeof(ekf5_payload_t);
+    pld->tstmp   = platformGetIMUCounter();
+
+    real  realData[4];
+    double dData[3];
+
+    pld->tstmp   = platformGetIMUCounter();
+
+    EKF_GetEstimatedLLA(dData);
+    pld->latitudeRad = dData[0] * DEG_TO_RAD;
+    pld->longitudeRad = dData[1] * DEG_TO_RAD;
+    pld->altitude = dData[2];
+
+    real geoid2ellipsoid;
+    EKF_GetGeoidAboveEllipsoid(&geoid2ellipsoid);
+    pld->altitude -= geoid2ellipsoid;
+
+    EKF_GetAttitude_Q(realData);
+    for (int i = 0; i < 4; ++i) {
+        pld->q[i] = (float)realData[i];
+    }
+
+    EKF_GetEstimatedVelocity(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->velocity[i] = (float)realData[i];
+    }
+
+    EKF_GetCorrectedAngRates(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->angularVelocities[i] = (float)realData[i] * DEG_TO_RAD;
+    }
+
+    EKF_GetCorrectedMags(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->magnetometers[i] = (float)realData[i];
+    }
+
+    EKF_GetMeasuredEulerAngles(realData);
+    for(int i = 0; i < NUM_AXIS; i++){
+        pld->measuredEulerAngles[i] = (float)realData[i];
+    }
+
+    if (EKF_GetMagneticDeclination(realData)) {
+        pld->magneticDeclination = (float)realData[0];
+    }
+    else {
+        pld->magneticDeclination = 0;
+    }
+
+    EKF_GetCorrectedAccels(realData);
+    for (int i = 0; i < NUM_AXIS; i++) {
+        pld->accelerations[i] = (float)realData[i];
+    }
+
+    GetBoardTempData(dData);
+    pld->temperature_C = dData[0];
+
+    EKF_GetPositionCovariance(pld->covPosition);
+    EKF_GetVelocityCovariance(pld->covVelocity);
+    EKF_GetQuaternionCovariance(pld->covQuaternion);
+
+    pld->filterFlags = makeFilterFlags();
+    return TRUE;
+}
+

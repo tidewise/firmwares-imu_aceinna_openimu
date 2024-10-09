@@ -81,6 +81,7 @@ limitations under the License.
 #define UBLOX_NAV_STATUS    0x0103
 #define UBLOX_NAV_VELNED    0x0112
 #define UBLOX_NAV_SBAS      0x0132
+#define UBLOX_NAV_RELPOSNED 0x013C
 #define UBLOX_ACK_ACK       0x0501
 #define UBLOX_CFG_CFG       0x0609
 #define UBLOX_CFG_PRT       0x0600

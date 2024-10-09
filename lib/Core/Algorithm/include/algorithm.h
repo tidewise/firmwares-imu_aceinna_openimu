@@ -52,6 +52,7 @@ limitations under the License.
 #define HEADING_MAG             1
 #define HEADING_GNSS_LOW        2
 #define HEADING_GNSS_HIGH       3
+#define HEADING_RTK             4
 
 typedef struct {
 	uint32_t Stabilize_System;      // SAMPLING_RATE * 0.36
@@ -207,6 +208,8 @@ typedef struct {
 
     real leverArmB[3];					// Antenna position w.r.t IMU in vehicle body frame
     real pointOfInterestB[3];			// Point of interest position w.r.t IMU in vehicle body frame
+
+    real rtkHeading2magHeading; // radians
 
     BOOL velocityAlwaysAlongBodyX;      // enable zero velocity update
 

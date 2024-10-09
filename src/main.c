@@ -187,9 +187,9 @@ int main(void)
     BOOL res;
     res = platformAssignPortTypeToSerialChannel(USER_SERIAL_PORT, UART_CHANNEL_0);
     while(!res){};  // check if valid
-    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_1);
+    res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_1);
     while(!res){};  // check if valid
-    res = platformAssignPortTypeToSerialChannel(GPS_SERIAL_PORT, UART_CHANNEL_2);
+    res = platformAssignPortTypeToSerialChannel(DEBUG_SERIAL_PORT, UART_CHANNEL_2);
     while(!res){};  // check if valid
 #else
     platformUnassignSerialChannels();

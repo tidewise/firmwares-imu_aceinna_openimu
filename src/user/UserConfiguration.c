@@ -22,6 +22,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 *******************************************************************************/
+#include <math.h>
 
 #include "string.h"
 
@@ -61,6 +62,7 @@ const UserConfigurationStruct gDefaultUserConfig = {
     .pointOfInterestBx   = 0.0,
     .pointOfInterestBy   = 0.0,
     .pointOfInterestBz   = 0.0,
+    .rtkHeading2magHeading = NAN,
 };
 
 UserConfigurationStruct gUserConfiguration;
@@ -242,6 +244,12 @@ BOOL  UpdateUserParameter(uint32_t number, uint64_t data, BOOL fApply)
                          (real)gUserConfiguration.leverArmBz );
             result = TRUE;
             break;   
+        case USER_RTK_HEADING2MAG_HEADING:
+            tmp = (double*) &data;
+            gUserConfiguration.rtkHeading2magHeading = *tmp;
+            setRTKHeading2MAGHeading((real) D2R * gUserConfiguration.rtkHeading2magHeading);
+            result = TRUE;
+            break;
         // case USER_XXX_OFFSET:  add function calls here if parameter XXXX
         //                        required be updated on the fly and/or validated
         //             break;

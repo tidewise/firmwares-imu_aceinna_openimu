@@ -492,6 +492,45 @@ void EKF_GetGeoidAboveEllipsoid(real* offset)
     *offset = gEKFOutput.geoidAboveEllipsoid;
 }
 
+/* Diagonal of the position covariance, 6 values */
+void EKF_GetPositionCovariance(real* values) {
+    values[0] = gKalmanFilter.P[0][0];
+    values[1] = gKalmanFilter.P[0][1];
+    values[2] = gKalmanFilter.P[0][2];
+    values[3] = gKalmanFilter.P[1][1];
+    values[4] = gKalmanFilter.P[1][2];
+    values[5] = gKalmanFilter.P[2][2];
+}
+
+/* Diagonal of the velocity covariance, 3 values */
+void EKF_GetVelocityCovariance(real* values) {
+    values[0] = gKalmanFilter.P[3][3];
+    values[1] = gKalmanFilter.P[3][4];
+    values[2] = gKalmanFilter.P[3][5];
+    values[3] = gKalmanFilter.P[4][4];
+    values[4] = gKalmanFilter.P[4][5];
+    values[5] = gKalmanFilter.P[5][5];
+}
+
+/* Upper part of the quaternion process covariance matrix, stored row-major
+ *
+ * It fills 10 values
+ *
+ * https://openimu.readthedocs.io/en/latest/algorithms/Process_Covariance.html
+ */
+void EKF_GetQuaternionCovariance(real* values) {
+    values[0] = gKalmanFilter.P[6][6];
+    values[1] = gKalmanFilter.P[6][7];
+    values[2] = gKalmanFilter.P[6][8];
+    values[3] = gKalmanFilter.P[6][9];
+    values[4] = gKalmanFilter.P[7][7];
+    values[5] = gKalmanFilter.P[7][8];
+    values[6] = gKalmanFilter.P[7][9];
+    values[7] = gKalmanFilter.P[8][8];
+    values[8] = gKalmanFilter.P[8][9];
+    values[9] = gKalmanFilter.P[9][9];
+}
+
 /* Extract the Operational Mode of the Algorithm:
  *   0: Stabilize
  *   1: Initialize
@@ -609,6 +648,13 @@ void EKF_SetInputStruct(double *accels, double *rates, double *mags,
                           &gKalmanFilter.rGPS_E[0],
                           &gKalmanFilter.Rn2e[0][0],
                           &gKalmanFilter.rGPS_N[0]);
+        }
+
+        gEKFInput.rtkHeading.valid = gps->rtkHeadingData.valid;
+        if (gEKFInput.rtkHeading.valid) {
+            gEKFInput.rtkHeading.heading = gps->rtkHeadingData.heading
+                + gAlgorithm.rtkHeading2magHeading;
+            gEKFInput.rtkHeading.headingAccuracy = gps->rtkHeadingData.headingAccuracy;
         }
     }
 

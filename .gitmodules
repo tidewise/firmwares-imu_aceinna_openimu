@@ -1,6 +1,3 @@
-[submodule "openimu-core"]
-	path = openimu-core
-	url = ./lib/openimu-core
-[submodule "lib/openimu-core"]
-	path = lib/openimu-core
-	url = https://github.com/tidewise/openimu-core
+[submodule "lib/openIMU300-lib"]
+	path = lib/openIMU300-lib
+	url = https://github.com/Aceinna/openIMU300-lib
