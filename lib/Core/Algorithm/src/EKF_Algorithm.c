@@ -551,6 +551,11 @@ void EKF_GetOperationalSwitches(uint8_t *EKF_LinAccelSwitch, uint8_t *EKF_TurnSw
     *EKF_TurnSwitch     = gEKFOutput.turnSwitchFlag;
 }
 
+void EKF_GetRTKHeadingUse(uint8_t* rtkHeading)
+{
+    *rtkHeading = gEKFOutput.status.bit.usingRTKHeading;
+}
+
 
 // SETTERS: for EKF input and output structures
 
@@ -725,6 +730,7 @@ void EKF_SetOutputStruct(void)
     gEKFOutput.opMode         = gAlgorithm.state;
     gEKFOutput.linAccelSwitch = gAlgorithm.linAccelSwitch;
     gEKFOutput.turnSwitchFlag = gAlgoStatus.bit.turnSwitch;
+    gEKFOutput.status = gAlgoStatus;
 
     // ------------------ Latitude and Longitude Data ------------------
     gEKFOutput.llaDeg[LAT] = gKalmanFilter.llaDeg[LAT];

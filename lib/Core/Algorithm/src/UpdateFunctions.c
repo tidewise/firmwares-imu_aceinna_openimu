@@ -195,6 +195,7 @@ void EKF_UpdateStage(void)
                 useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
                 useRTKHeading = !isnan(gAlgorithm.rtkHeading2magHeading) && gEKFInput.rtkHeading.valid;
+                gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
                  * good, just correct the filter states with input GNSS measurement.
