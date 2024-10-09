@@ -508,9 +508,9 @@ void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
     // Here I don't really know if these are the only flags I should look for.
     // For now it is just a guess of mine
     unsigned int flags = * ( (unsigned int*) msg + 60);
-    bool gnssFixOK = flags & 0x01;
-    bool rtkFixedSolution = (flags >> 3) & 0x03 == 0x02;
-    bool relPosHeadingValid = (flags >> 8) & 0x01;
+    bool gnssFixOK = (flags & 0x01) != 0;
+    bool rtkFixedSolution = (flags & 0x10) != 0;
+    bool relPosHeadingValid = (flags & 0x100) != 0;
     GPSData->movingBaseRTKValid = gnssFixOK && rtkFixedSolution && relPosHeadingValid;
 }
 
