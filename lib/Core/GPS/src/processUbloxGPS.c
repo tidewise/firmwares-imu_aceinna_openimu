@@ -499,15 +499,15 @@ void decodeNavPvt(char *msg, GpsData_t *GPSData)
 }
 
 void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
-    int relPosHeading = *( (int *) msg + 24 );
+    int32_t relPosHeading = *(int32_t*)(msg + 24);
     GPSData->relPosHeading = relPosHeading * 1e-5 * D2R;
 
-    unsigned int accRelPosHeading = *( (unsigned int*) msg + 52 );
+    uint32_t accRelPosHeading = *(uint32_t*)(msg + 52);
     GPSData->accRelPosHeading = accRelPosHeading * 1e-5 * D2R;
 
     // Here I don't really know if these are the only flags I should look for.
     // For now it is just a guess of mine
-    unsigned int flags = * ( (unsigned int*) msg + 60);
+    uint32_t flags = *(uint32_t*)(msg + 60);
     bool gnssFixOK = (flags & 0x01) != 0;
     bool rtkFixedSolution = (flags & 0x10) != 0;
     bool relPosHeadingValid = (flags & 0x100) != 0;
