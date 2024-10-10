@@ -204,7 +204,6 @@ void EKF_UpdateStage(void)
                 useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
                 useRTKHeading = rtkHeadingEnabled() && gEKFInput.rtkHeading.valid;
-                gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
                 if (gEKFInput.rtkHeading.valid) {
                     gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
                 }
@@ -255,6 +254,8 @@ void EKF_UpdateStage(void)
             }
         }
     }
+
+    gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
 }
 
 // ----Compute the innovation vector, nu----
