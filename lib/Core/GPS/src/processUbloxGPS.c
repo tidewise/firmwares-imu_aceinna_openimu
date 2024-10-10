@@ -500,10 +500,10 @@ void decodeNavPvt(char *msg, GpsData_t *GPSData)
 
 void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
     int relPosHeading = *( (int *) msg + 24 );
-    GPSData->relPosHeading = relPosHeading * 1e-5;
+    GPSData->relPosHeading = relPosHeading * 1e-5 * D2R;
 
     unsigned int accRelPosHeading = *( (unsigned int*) msg + 52 );
-    GPSData->accRelPosHeading = accRelPosHeading * 1e-5;
+    GPSData->accRelPosHeading = accRelPosHeading * 1e-5 * D2R;
 
     // Here I don't really know if these are the only flags I should look for.
     // For now it is just a guess of mine

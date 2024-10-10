@@ -311,8 +311,8 @@ void GetGPSData(gpsDataStruct_t *data)
         data->geoidAboveEllipsoid = gGpsDataPtr->geoidAboveEllipsoid;
 
         data->rtkHeadingData.valid = gGpsData.movingBaseRTKValid;
-        data->rtkHeadingData.heading = gGpsData.relPosHeading * D2R;
-        data->rtkHeadingData.headingAccuracy = gGpsData.accRelPosHeading * D2R;
+        data->rtkHeadingData.heading = gGpsData.relPosHeading;
+        data->rtkHeadingData.headingAccuracy = gGpsData.accRelPosHeading;
     }
 }
 
