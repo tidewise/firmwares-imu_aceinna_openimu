@@ -137,6 +137,9 @@ void EKF_UpdateStage(void)
     if( gAlgorithm.state <= LOW_GAIN_AHRS )
     {
         updateHeading = true;
+        useRTKHeading = false;
+        useGpsHeading = false;
+
         // Only allow the algorithm to be called on 100 Hz marks
         if(timer.oneHundredHertzFlag == 1) 
         {
