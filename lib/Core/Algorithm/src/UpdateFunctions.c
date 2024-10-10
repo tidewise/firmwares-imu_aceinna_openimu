@@ -1270,7 +1270,19 @@ static void Update_GPS(void)
     ComputeSystemInnovation_Att();
 
     // Initialize heading. If getting initial heading at this step, do not update att
-    if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
+    if (rtkHeadingEnabled() && gAlgorithm.headingIni < HEADING_RTK){
+        if(InitializeHeadingFromRTK()){
+            // Heading is initialized. Related elements in the EKF also need intializing.
+            InitializeEkfHeading(gEKFInput.rtkHeading.heading,
+                                 gEKFInput.rtkHeading.headingAccuracy);
+
+            /* This heading measurement is used to initialize heading, and should not be
+             * used to update heading.
+             */
+            useRTKHeading = FALSE;
+        }
+    }
+    else if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
     {
         if (InitializeHeadingFromGnss())
         {
@@ -1283,19 +1295,6 @@ static void Update_GPS(void)
              * used to update heading.
              */
             useGpsHeading = FALSE;
-        }
-    }
-
-    if(!isnan(gAlgorithm.rtkHeading2magHeading) && gAlgorithm.headingIni < HEADING_RTK){
-        if(InitializeHeadingFromRTK()){
-            // Heading is initialized. Related elements in the EKF also need intializing.
-            InitializeEkfHeading(gEKFInput.rtkHeading.heading,
-                                 gEKFInput.rtkHeading.headingAccuracy);
-
-            /* This heading measurement is used to initialize heading, and should not be
-             * used to update heading.
-             */
-            useRTKHeading = FALSE;
         }
     }
 }
