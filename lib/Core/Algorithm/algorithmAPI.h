@@ -113,4 +113,6 @@ void setPointOfInterest( real poiBx, real poiBy, real poiBz );
  ****************************************************************************/
 void setRTKHeading2MAGHeading(real rtkHeading2magHeading);
 
+BOOL rtkHeadingEnabled();
+
 #endif

@@ -215,6 +215,11 @@ void setPointOfInterest( real poiBx, real poiBy, real poiBz )
     gAlgorithm.pointOfInterestB[2] = poiBz;
 }
 
+bool rtkHeadingEnabled()
+{
+    return !isnan(gAlgorithm.rtkHeading2magHeading);
+}
+
 void setRTKHeading2MAGHeading(real rtkHeading2magHeading)
 {
     gAlgorithm.rtkHeading2magHeading = rtkHeading2magHeading;

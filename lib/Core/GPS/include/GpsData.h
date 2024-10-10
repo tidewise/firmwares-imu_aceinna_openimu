@@ -116,9 +116,10 @@ typedef struct  {
     float                GPSHorizAcc;
     float                GPSVertAcc;
 
-    uint8_t              movingBaseRTKValid;
-    float                relPosHeading; // [deg]
-    float                accRelPosHeading; // [deg]
+    uint8_t              relPosHeadingValid;
+    uint32_t             relPosHeadingITOW;
+    float                relPosHeading; // [rad]
+    float                relPosHeadingAccuracy; // [rad]
 } GpsData_t;
 
 extern GpsData_t *gGpsDataPtr; // definition in driverGPS.c

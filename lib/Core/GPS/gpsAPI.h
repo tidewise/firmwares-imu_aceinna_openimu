@@ -56,6 +56,7 @@ void TaskGps(void const *argument);
 
 typedef struct {
     uint8_t valid;
+    uint32_t itow;
     float   heading;
     float   headingAccuracy;
 } rtkHeadingStruct_t;
@@ -98,7 +99,7 @@ extern gpsDataStruct_t gGPS, gCanGps;
  * @param [in] data - pointer to external GPS structure
  * @retval N/A
  ******************************************************************************/
-void  GetGPSData(gpsDataStruct_t *data);
+void  GetGPSData(gpsDataStruct_t *data, bool wantRelPosHeading);
 BOOL  SetGpsBaudRate(int rate, int fApply);
 BOOL  SetGpsProtocol(int protocol, int fApply);
 
