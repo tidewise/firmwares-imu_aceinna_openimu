@@ -69,6 +69,7 @@ void InitUserAlgorithm()
     setPointOfInterest( (real)gUserConfiguration.pointOfInterestBx,
                         (real)gUserConfiguration.pointOfInterestBy,
                         (real)gUserConfiguration.pointOfInterestBz );
+    setRTKHeading2MAGHeading(gUserConfiguration.rtkHeading2magHeading);
 }
 
 
