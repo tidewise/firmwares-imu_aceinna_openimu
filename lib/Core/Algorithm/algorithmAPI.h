@@ -48,6 +48,14 @@ void InitializeAlgorithmStruct(uint8_t callingFreq);
 ******************************************************************************/
 void GetAlgoStatus(AlgoStatus *algoStatus);
 
+int32_t getTimeSinceLastGoodGPSReading();
+
+bool hasGoodGPSReadingTimeout();
+
+int32_t getTimeSinceLastGoodRTKHeading();
+
+bool hasGoodRTKHeadingTimeout();
+
 void setAlgorithmStateStabilizeSystem();
 
 uint16_t getAlgorithmCounter();

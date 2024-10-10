@@ -112,6 +112,9 @@ static BOOL useGpsHeading = 0;  /* When GPS velocity is above a certain threshol
 
 static BOOL useRTKHeading = 0;
 
+/** Whether the next INS update state should update heading */
+static BOOL updateHeading = true;
+
 static int runInsUpdate = 0;    /* To enable the update to be broken up into
                                  * two sequential calculations in two sucessive
                                  * 100 Hz periods.
@@ -127,6 +130,8 @@ static void GenPseudoMeasCov(real *r);
 // EKF_UpdateStage.m
 void EKF_UpdateStage(void)
 {
+    updateHeading = true;
+
     /* Perform a VG/AHRS update, regardless of GPS availability or health,
      * when the state is HG AHRS or LG AHRS. Once GPS becomes healthy
      * (and the right conditions are met) perform an INS or reduced-order GPS update.
@@ -194,22 +199,22 @@ void EKF_UpdateStage(void)
                 gAlgoStatus.bit.gpsHeadingValid = (gEKFInput.rawGroundSpeed >= LIMIT_MIN_GPS_VELOCITY_HEADING);
                 useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
-                useRTKHeading = !isnan(gAlgorithm.rtkHeading2magHeading) && gEKFInput.rtkHeading.valid;
+                useRTKHeading = rtkHeadingEnabled() && gEKFInput.rtkHeading.valid;
                 gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
+                if (gEKFInput.rtkHeading.valid) {
+                    gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
+                }
+
+                if (rtkHeadingEnabled() && !hasGoodRTKHeadingTimeout()) {
+                    updateHeading = false;
+                }
+
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
                  * good, just correct the filter states with input GNSS measurement.
                  */
-                int32_t timeSinceLastGoodGPSReading = (int32_t)gAlgorithm.itow - gAlgorithm.timeOfLastGoodGPSReading;
-                if (timeSinceLastGoodGPSReading < 0) 
+                if (hasGoodGPSReadingTimeout())
                 {
-                    timeSinceLastGoodGPSReading = timeSinceLastGoodGPSReading + MAX_ITOW;
-                }
-                if (timeSinceLastGoodGPSReading > gAlgorithm.Limit.maxReliableDRTime)
-                {
-#ifdef INS_OFFLINE
-                    printf("GPS relocked.\n");
-#endif // INS_OFFLINE
                     // Since a relative long time has passed since DR begins, INS states need reinitialized.
                     InitINSFilter();
                 }
@@ -290,24 +295,8 @@ void ComputeSystemInnovation_Vel(void)
     gKalmanFilter.nu[STATE_VZ] = _LimitValue(gKalmanFilter.nu[STATE_VZ], gAlgorithm.Limit.Innov.velocityError);
 }
 
-
-/* Compute the innovation, nu, between measured and predicted attitude.
- *   Correct for wrap-around. Then limit the error.
- */
-void ComputeSystemInnovation_Att(void)
+static void ComputeSystemInnovation_Att_Yaw(void)
 {
-    // ----- Roll -----
-    gKalmanFilter.nu[STATE_ROLL]  = gKalmanFilter.measuredEulerAngles[ROLL] -
-                                    gKalmanFilter.eulerAngles[ROLL];
-    gKalmanFilter.nu[STATE_ROLL]  = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_ROLL]);
-    gKalmanFilter.nu[STATE_ROLL] = _LimitValue(gKalmanFilter.nu[STATE_ROLL], gAlgorithm.Limit.Innov.attitudeError);
-
-    // ----- Pitch -----
-    gKalmanFilter.nu[STATE_PITCH] = gKalmanFilter.measuredEulerAngles[PITCH] -
-                                    gKalmanFilter.eulerAngles[PITCH];
-    gKalmanFilter.nu[STATE_PITCH] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_PITCH]);
-    gKalmanFilter.nu[STATE_PITCH] = _LimitValue(gKalmanFilter.nu[STATE_PITCH], gAlgorithm.Limit.Innov.attitudeError);
-
     // ----- Yaw -----
     // CHANGED TO SWITCH BETWEEN GPS AND MAG UPDATES
     if (useRTKHeading) {
@@ -352,6 +341,28 @@ void ComputeSystemInnovation_Att(void)
     }
     gKalmanFilter.nu[STATE_YAW] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_YAW]);
     gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], gAlgorithm.Limit.Innov.attitudeError);
+}
+
+/* Compute the innovation, nu, between measured and predicted attitude.
+ *   Correct for wrap-around. Then limit the error.
+ */
+void ComputeSystemInnovation_Att(void)
+{
+    // ----- Roll -----
+    gKalmanFilter.nu[STATE_ROLL]  = gKalmanFilter.measuredEulerAngles[ROLL] -
+                                    gKalmanFilter.eulerAngles[ROLL];
+    gKalmanFilter.nu[STATE_ROLL]  = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_ROLL]);
+    gKalmanFilter.nu[STATE_ROLL] = _LimitValue(gKalmanFilter.nu[STATE_ROLL], gAlgorithm.Limit.Innov.attitudeError);
+
+    // ----- Pitch -----
+    gKalmanFilter.nu[STATE_PITCH] = gKalmanFilter.measuredEulerAngles[PITCH] -
+                                    gKalmanFilter.eulerAngles[PITCH];
+    gKalmanFilter.nu[STATE_PITCH] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_PITCH]);
+    gKalmanFilter.nu[STATE_PITCH] = _LimitValue(gKalmanFilter.nu[STATE_PITCH], gAlgorithm.Limit.Innov.attitudeError);
+
+    if (updateHeading) {
+        ComputeSystemInnovation_Att_Yaw();
+    }
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
      * attitude-errors used to update roll and pitch.
@@ -478,8 +489,8 @@ uint8_t _GenerateObservationJacobian_AHRS(void)
     return 1;
 }
 
+static void _GenerateObservationCovariance_AHRS_Yaw();
 
-// 
 void _GenerateObservationCovariance_AHRS(void)
 {
     static real Rnom;
@@ -606,6 +617,16 @@ void _GenerateObservationCovariance_AHRS(void)
         gKalmanFilter.R[STATE_PITCH] = maxR;
     }
 
+    if (updateHeading) {
+        _GenerateObservationCovariance_AHRS_Yaw();
+    }
+    else {
+        gKalmanFilter.R[STATE_YAW] = (real)1.0;
+    }
+}
+
+static void _GenerateObservationCovariance_AHRS_Yaw()
+{
     /* Yaw
      * ------ From NovAtel's description of BESTVEL: ------
      * Velocity (speed and direction) calculations are computed from either

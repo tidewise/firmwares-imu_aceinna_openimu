@@ -82,6 +82,9 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     gAlgorithm.insFirstTime = TRUE;
     gAlgorithm.headingIni = HEADING_UNINITIALIZED;
 
+    gAlgorithm.timeOfLastGoodGPSReading = -MAX_ITOW;
+    gAlgorithm.timeOfLastGoodRTKHeading = -MAX_ITOW;
+
     //gAlgorithm.magAlignUnderway = FALSE; // Set and reset in mag-align code
 
     // Increment at 100 Hz in EKF_Algorithm; sync with GPS itow when valid.
@@ -90,6 +93,7 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     // Limit is compared to ITOW.  Time must be in [msec].
     gAlgorithm.Limit.maxGpsDropTime = LIMIT_MAX_GPS_DROP_TIME * 1000;
     gAlgorithm.Limit.maxReliableDRTime = LIMIT_RELIABLE_DR_TIME * 1000;
+    gAlgorithm.Limit.maxReliableRTKHeadingTime = LIMIT_RELIABLE_RTK_HEADING_TIME * 1000;
 
     // Limit is compared to count (incremented upon loop through
     //   taskDataAcquisition).  Time must be in [count] based on ODR.
@@ -157,6 +161,22 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
 
     //----------------------------algorithm states-----------------------------
     memset(&gAlgoStatus, 0, sizeof(gAlgoStatus));
+}
+
+int32_t getTimeSinceLastGoodGPSReading() {
+    return (int32_t)gAlgorithm.itow - gAlgorithm.timeOfLastGoodGPSReading;
+}
+
+bool hasGoodGPSReadingTimeout() {
+    return getTimeSinceLastGoodGPSReading() > gAlgorithm.Limit.maxReliableDRTime;
+}
+
+int32_t getTimeSinceLastGoodRTKHeading() {
+    return (int32_t)gAlgorithm.itow - gAlgorithm.timeOfLastGoodRTKHeading;
+}
+
+bool hasGoodRTKHeadingTimeout() {
+    return getTimeSinceLastGoodRTKHeading() > gAlgorithm.Limit.maxReliableRTKHeadingTime;
 }
 
 void GetAlgoStatus(AlgoStatus *algoStatus)

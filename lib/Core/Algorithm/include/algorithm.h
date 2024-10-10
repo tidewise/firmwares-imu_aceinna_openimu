@@ -74,6 +74,10 @@ typedef struct {
                                  * is available again. Otherwise, the fusion algorithm will
                                  * gradually correct the position and velocity to the GPS.
                                  */
+    int32_t maxReliableRTKHeadingTime;  /* [msec] When RTK heading outage duration exceeds this limit,
+                                 * the algorithm will switch back to another heading source
+                                 * (either GPS velocity or magnetometers)
+                                 */
 	int32_t Max_Rest_Time_Before_Drop_To_AHRS;   // [msec]
 	int32_t Declination_Expiration_Time;   // [msec]
 
@@ -183,6 +187,7 @@ typedef struct {
 
     int32_t timeOfLastSufficientGPSVelocity;
     int32_t timeOfLastGoodGPSReading;
+    int32_t timeOfLastGoodRTKHeading;
 
     real filteredYawRate;				// Yaw-Rate (Turn-Switch) filter
 
