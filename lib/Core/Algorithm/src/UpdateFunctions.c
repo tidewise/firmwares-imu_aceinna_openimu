@@ -130,14 +130,13 @@ static void GenPseudoMeasCov(real *r);
 // EKF_UpdateStage.m
 void EKF_UpdateStage(void)
 {
-    updateHeading = true;
-
     /* Perform a VG/AHRS update, regardless of GPS availability or health,
      * when the state is HG AHRS or LG AHRS. Once GPS becomes healthy
      * (and the right conditions are met) perform an INS or reduced-order GPS update.
      */
     if( gAlgorithm.state <= LOW_GAIN_AHRS )
     {
+        updateHeading = true;
         // Only allow the algorithm to be called on 100 Hz marks
         if(timer.oneHundredHertzFlag == 1) 
         {
@@ -163,6 +162,8 @@ void EKF_UpdateStage(void)
          */
         if( gEKFInput.gpsUpdate )
         {
+            updateHeading = true;
+
             /* Sync the algorithm itow to the GPS value. GPS time is the time of pps.
              * It is delayed by (gAlgorithm.itow-gEKFInput.itow). If there is loss of
              * PPS detection or GPS measuremetn, gEKFInput.itow equals gKalmanFilter.ppsITow.
@@ -205,9 +206,12 @@ void EKF_UpdateStage(void)
                     gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
                 }
 
-                if (rtkHeadingEnabled() && !hasGoodRTKHeadingTimeout()) {
-                    updateHeading = false;
-                }
+                /* Do not apply heading updates if the RTK heading feature is enabled but
+                 * we do not have a valid RTK heading reading, unless we've timed out
+                 * in which case we'll update using magnetometers */
+                updateHeading =
+                    useRTKHeading ||
+                    (rtkHeadingEnabled() && !hasGoodRTKHeadingTimeout());
 
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
@@ -362,6 +366,10 @@ void ComputeSystemInnovation_Att(void)
 
     if (updateHeading) {
         ComputeSystemInnovation_Att_Yaw();
+    }
+    else {
+        gKalmanFilter.nu[STATE_YAW] = (real) 0.0;
+
     }
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
