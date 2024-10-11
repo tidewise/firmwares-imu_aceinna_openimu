@@ -335,22 +335,6 @@ void INS_To_AHRS_Transition_Test(void)
     {
         gAlgorithm.timeOfLastSufficientGPSVelocity = (int32_t)gEKFInput.itow;
     }
-    /* Determine the length of time it has been since the system 'moved' --
-     * only linear motion considered (rotations ignored).
-     */
-    int32_t timeSinceRestBegan = (int32_t)gEKFInput.itow - gAlgorithm.timeOfLastSufficientGPSVelocity;
-    if (timeSinceRestBegan < 0)
-    {
-        timeSinceRestBegan = timeSinceRestBegan + MAX_ITOW;
-    }
-    if (timeSinceRestBegan > LIMIT_MAX_REST_TIME_BEFORE_HEADING_INVALID && gAlgorithm.headingIni != HEADING_UNINITIALIZED)
-    {
-        gAlgorithm.headingIni = HEADING_GNSS_LOW;
-#ifdef DISPLAY_DIAGNOSTIC_MSG
-        DebugPrintString("Rest for too long.");
-        DebugPrintEndline();
-#endif
-    }
 
     // compute time since the last good GPS reading
     int32_t timeSinceLastGoodGPSReading = (int32_t)gAlgorithm.itow - gAlgorithm.timeOfLastGoodGPSReading;
@@ -366,7 +350,6 @@ void INS_To_AHRS_Transition_Test(void)
 
         // Currently in INS mode but requiring a transition to AHRS / VG
         gAlgorithm.insFirstTime = TRUE;
-        gAlgorithm.headingIni = HEADING_UNINITIALIZED;
 
         /* The transition from INS to AHRS and back to INS does not seem to
          * generate a stable solution if we transition to LG AHRS for only 30
@@ -379,14 +362,6 @@ void INS_To_AHRS_Transition_Test(void)
 
         // Set linear-acceleration switch variables
         gAlgorithm.linAccelSwitchCntr = 0;
-
-#ifdef DISPLAY_DIAGNOSTIC_MSG
-        if (magUsedInAlgorithm()) {
-            TimingVars_DiagnosticMsg("Transitioning to low-gain AHRS mode");
-        } else {
-            TimingVars_DiagnosticMsg("Transitioning to low-gain VG mode");
-        }
-#endif
 
         gAlgoStatus.bit.highGain              = ( gAlgorithm.state == HIGH_GAIN_AHRS );
         gAlgoStatus.bit.attitudeOnlyAlgorithm = TRUE;

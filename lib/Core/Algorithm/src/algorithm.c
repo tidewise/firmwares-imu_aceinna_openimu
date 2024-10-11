@@ -73,14 +73,7 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     // Turn-switch variable
     gAlgorithm.filteredYawRate = (real)0.0;
 
-    // Tell the algorithm to apply the declination correction to the heading
-    //  (at startup in AHRS, do not apply.  After INS becomes healthy, apply,
-    //  even in AHRS, but this condition shouldn't last forever.  Question:
-    //  how long to keep this set TRUE after GPS in invalid?)
-    gAlgorithm.applyDeclFlag = FALSE;
-
     gAlgorithm.insFirstTime = TRUE;
-    gAlgorithm.headingIni = HEADING_UNINITIALIZED;
 
     gAlgorithm.timeOfLastGoodGPSReading = -MAX_ITOW;
     gAlgorithm.timeOfLastGoodRTKHeading = -MAX_ITOW;
@@ -107,7 +100,7 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     gAlgorithm.Limit.Innov.positionError = (real)270.0;
     gAlgorithm.Limit.Innov.velocityError = (real)27.0;
     gAlgorithm.Limit.Innov.attitudeError = (real)SIX_DEGREES_IN_RAD;
-    
+
     // Five-hertz LPF (corresponding integer value found in PredictFunctions.c)
     // Replace with a function that computes the coefficients.  Value (below) will
     //   then be the cutoff frequency.
@@ -117,6 +110,10 @@ void InitializeAlgorithmStruct(uint8_t callingFreq)
     //  and smooth linear acceleration. But on some platform, there is large vibration,
     //  uing raw accel to detect linear acceleration will always detect linear accel.
     gAlgorithm.useRawAccToDetectLinAccel = TRUE;
+
+    gAlgorithm.headingSource = HEADING_SOURCE_NONE;
+    gAlgorithm.heading = 0;
+    gAlgorithm.headingCovariance = 1.0;
 
     // Set the turn-switch threshold to a default value in [deg/sec]
     gAlgorithm.turnSwitchThreshold = 6.0;
