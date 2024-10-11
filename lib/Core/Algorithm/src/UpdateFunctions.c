@@ -666,8 +666,17 @@ static void _GenerateObservationCovariance_AHRS_Yaw()
      * CHANGED TO SWITCH BETWEEN GPS AND MAG UPDATES
      */
     if (useRTKHeading) {
-        gKalmanFilter.R[STATE_YAW] = gEKFInput.rtkHeading.headingAccuracy *
-            gEKFInput.rtkHeading.headingAccuracy;
+        // Limit the covariance to 2 degrees
+        //
+        // This accounts to the complete lack of synchronization, which on a system
+        // like tupan means something that 2-3 degree of error.
+        if (gEKFInput.rtkHeading.headingAccuracy > 0.035) {
+            gKalmanFilter.R[STATE_YAW] = gEKFInput.rtkHeading.headingAccuracy *
+                gEKFInput.rtkHeading.headingAccuracy;
+        }
+        else {
+            gKalmanFilter.R[STATE_YAW] = 0.0013;
+        }
     }
     else if ( useGpsHeading )
     {
