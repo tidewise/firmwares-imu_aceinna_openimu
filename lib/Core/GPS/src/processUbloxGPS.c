@@ -498,6 +498,21 @@ void decodeNavPvt(char *msg, GpsData_t *GPSData)
     GPSData->updateFlagForEachCall |= 1 << GOT_VTG_MSG;
 }
 
+/** Mask and value for the RELPOSNED flags, to decide whether a message contains
+ * valid information:
+ * - gnss fix OK (1)
+ * - differential corrections (1)
+ * - has valid relative position. Does not seem to be needed, but messages that only
+ *   contain "valid relative heading" contain trash (1)
+ * - RTK fixed (10)
+ * - ignore the isMoving flag
+ * - has actual reference position (0). When 1, uses interpolation.
+ * - has actual reference observation (0). When 1, uses interpolation.
+ * - relative position heading valid (1)
+ */
+#define REL_POS_HEADING_VALID      0b100010111
+#define REL_POS_HEADING_VALID_MASK 0b111011111
+
 void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
     GPSData->relPosHeadingITOW = *(uint32_t*)(msg + 4);
 
@@ -510,10 +525,8 @@ void extractHeadingFromRelPosNed(char *msg, GpsData_t* GPSData) {
     // Here I don't really know if these are the only flags I should look for.
     // For now it is just a guess of mine
     uint32_t flags = *(uint32_t*)(msg + 60);
-    bool gnssFixOK = (flags & 0x01) != 0;
-    bool rtkFixedSolution = (flags & 0x10) != 0;
-    bool relPosHeadingValid = (flags & 0x100) != 0;
-    GPSData->relPosHeadingValid = gnssFixOK && rtkFixedSolution && relPosHeadingValid;
+    GPSData->relPosHeadingValid =
+        (flags & REL_POS_HEADING_VALID_MASK) == REL_POS_HEADING_VALID;
 }
 
 /** ****************************************************************************
