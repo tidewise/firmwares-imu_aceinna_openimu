@@ -213,7 +213,7 @@ void EKF_UpdateStage(void)
                  * in which case we'll update using magnetometers */
                 updateHeading =
                     useRTKHeading ||
-                    (rtkHeadingEnabled() && !hasGoodRTKHeadingTimeout());
+                    (rtkHeadingEnabled() && hasGoodRTKHeadingTimeout());
 
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
