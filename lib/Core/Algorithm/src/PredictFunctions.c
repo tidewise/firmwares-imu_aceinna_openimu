@@ -179,14 +179,6 @@ void EKF_PredictionStage(real *filteredAccel)
         //   forces the error to zero)
         gKalmanFilter.measuredEulerAngles[YAW] = gKalmanFilter.eulerAngles[YAW];
     }
-
-
-    // Adjust for declination if we have declination data
-    if( gWorldMagModel.validSoln )
-    {
-        gKalmanFilter.measuredEulerAngles[YAW] = gKalmanFilter.measuredEulerAngles[YAW] +
-                                                 gWorldMagModel.decl_rad;
-    }
 }
 
 

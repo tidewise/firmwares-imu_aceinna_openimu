@@ -28,7 +28,7 @@
 #include "EKF_Algorithm.h"
 #include "UpdateFunctions.h"
 #include "SensorNoiseParameters.h"
-
+#include "WorldMagneticModel.h"
 
 extern ImuStatsStruct gImuStats;
 
@@ -63,26 +63,16 @@ static real _LimitValue( real value, real limit );
 static BOOL _CheckForUpdateTrigger(uint8_t updateRate);
 
 static void ApplyGpsDealyCorrForStateCov();
+static void ComputeSystemInnovation_Att_Yaw();
+
+static void Update_GPS(void);
+static void Update_PseudoMeasurement(void);
+static void GenPseudoMeasCov(real *r);
+static bool Update_Heading();
+static void Update_AHRS();
 
 /******************************************************************************
- * @brief Initializa heading using GNSS heading.
- * If the GNSS heading is valid and the vehicle is drving forward, the GNSS
- * heading is considered valid, and the eading will be initialized to be
- * gEKFInput.trueCourse, and velocity will also be initiazlied as the
- * corresponding NED speed. After this, the quaternion (q0 and q3) and velocity
- * terms in the state covariance matrix P will be reset. Non-diagonal terms will be
- * set as 0s, and diagonal terms will be set according to estimated variance. The
- * cov(quaternion, velocity) should also be updated. But the positive-definiteness
- * is not guaranteed this way.
- * TRACE:
- * @retval TRUE if heading initialized/reinitialized, FALSE if not.
-******************************************************************************/
-static int InitializeHeadingFromGnss();
-
-static int InitializeHeadingFromRTK();
-
-/******************************************************************************
- * @brief When heading is ready for initialization, the heading angle (yaw, and 
+ * @brief When heading is ready for initialization, the heading angle (yaw, and
  * indeed quaternion in the Kalman filter) is initialized to match the value of
  * gEKFInput.trueCourse, and velocity will also be initiazlied as the
  * corresponding NED speed. After this, the quaternion (q0 and q3) and velocity
@@ -93,9 +83,7 @@ static int InitializeHeadingFromRTK();
  * TRACE:
  * @retval None.
 ******************************************************************************/
-static void InitializeEkfHeading(float headingMeasurement, float headingMeasurementCov);
-
-static void computeHeadingFromGps(float* heading, float* covariance);
+static bool initializeEkfHeading(float headingMeasurement, float headingMeasurementCov);
 
 // Update rates
 #define  TEN_HERTZ_UPDATE          10
@@ -104,17 +92,6 @@ static void computeHeadingFromGps(float* heading, float* covariance);
 #define  FIFTY_HERTZ_UPDATE        50
 #define  ONE_HUNDRED_HERTZ_UPDATE  100
 
-static BOOL useGpsHeading = 0;  /* When GPS velocity is above a certain threshold,
-                                 * this is set to 1, and GPS heading measurement
-                                 * is used, otherwise, this is set to 0 and magnetic
-                                 * heading is used.
-                                 */
-
-static BOOL useRTKHeading = 0;
-
-/** Whether the next INS update state should update heading */
-static BOOL updateHeading = true;
-
 static int runInsUpdate = 0;    /* To enable the update to be broken up into
                                  * two sequential calculations in two sucessive
                                  * 100 Hz periods.
@@ -122,10 +99,6 @@ static int runInsUpdate = 0;    /* To enable the update to be broken up into
 
 // Uncomment to run only AHRS-type updates
 //#define ATT_UPDATE_ONLY
-
-static void Update_GPS(void);
-static void Update_PseudoMeasurement(void);
-static void GenPseudoMeasCov(real *r);
 
 // EKF_UpdateStage.m
 void EKF_UpdateStage(void)
@@ -136,10 +109,6 @@ void EKF_UpdateStage(void)
      */
     if( gAlgorithm.state <= LOW_GAIN_AHRS )
     {
-        updateHeading = true;
-        useRTKHeading = false;
-        useGpsHeading = false;
-
         // Only allow the algorithm to be called on 100 Hz marks
         if(timer.oneHundredHertzFlag == 1) 
         {
@@ -147,11 +116,7 @@ void EKF_UpdateStage(void)
             // Subframe counter counts to 10 before it is reset
             if( _CheckForUpdateTrigger(TEN_HERTZ_UPDATE) )
             {
-                /* The AHRS/VG solution is handled inside FieldVectorsToEulerAngles
-                 * (called from the prediction function EKF_PredictionStage)
-                 */
-                ComputeSystemInnovation_Att();
-                Update_Att();
+                Update_AHRS();
             }
         }
     } 
@@ -165,8 +130,6 @@ void EKF_UpdateStage(void)
          */
         if( gEKFInput.gpsUpdate )
         {
-            updateHeading = true;
-
             /* Sync the algorithm itow to the GPS value. GPS time is the time of pps.
              * It is delayed by (gAlgorithm.itow-gEKFInput.itow). If there is loss of
              * PPS detection or GPS measuremetn, gEKFInput.itow equals gKalmanFilter.ppsITow.
@@ -199,22 +162,6 @@ void EKF_UpdateStage(void)
             // GNSS update
             if (gEKFInput.gpsFixType)
             {
-                // GPS heading valid?
-                gAlgoStatus.bit.gpsHeadingValid = (gEKFInput.rawGroundSpeed >= LIMIT_MIN_GPS_VELOCITY_HEADING);
-                useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
-
-                useRTKHeading = rtkHeadingEnabled() && gEKFInput.rtkHeading.valid;
-                if (gEKFInput.rtkHeading.valid) {
-                    gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
-                }
-
-                /* Do not apply heading updates if the RTK heading feature is enabled but
-                 * we do not have a valid RTK heading reading, unless we've timed out
-                 * in which case we'll update using magnetometers */
-                updateHeading =
-                    useRTKHeading ||
-                    (rtkHeadingEnabled() && hasGoodRTKHeadingTimeout());
-
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
                  * good, just correct the filter states with input GNSS measurement.
@@ -234,7 +181,7 @@ void EKF_UpdateStage(void)
             }
             
             // apply motion constraints
-            if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni>HEADING_UNINITIALIZED)
+            if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingSource != HEADING_SOURCE_NONE)
             {
                 Update_PseudoMeasurement();
             }
@@ -254,8 +201,16 @@ void EKF_UpdateStage(void)
             }
         }
     }
+}
 
-    gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
+static void Update_AHRS() {
+    /* The AHRS/VG solution is handled inside FieldVectorsToEulerAngles
+     * (called from the prediction function EKF_PredictionStage)
+     */
+    Update_Heading();
+    ComputeSystemInnovation_Att_Yaw();
+    ComputeSystemInnovation_Att();
+    Update_Att();
 }
 
 // ----Compute the innovation vector, nu----
@@ -303,44 +258,71 @@ void ComputeSystemInnovation_Vel(void)
     gKalmanFilter.nu[STATE_VZ] = _LimitValue(gKalmanFilter.nu[STATE_VZ], gAlgorithm.Limit.Innov.velocityError);
 }
 
-static void ComputeSystemInnovation_Att_Yaw(void)
+static float computeRTKHeadingCovariance();
+static float computeMagHeadingCovariance();
+
+static bool computeHeading(HeadingSource* source, float* heading, float* headingCov)
 {
-    // ----- Yaw -----
-    // CHANGED TO SWITCH BETWEEN GPS AND MAG UPDATES
-    if (useRTKHeading) {
-        gKalmanFilter.nu[STATE_YAW] = gEKFInput.rtkHeading.heading -
-            gKalmanFilter.eulerAngles[YAW];
-    }
-    else if ( useGpsHeading )
-    {
-        if (gAlgorithm.headingIni >= HEADING_GNSS_LOW)   // heading already initialized with GNSS heading
-        {
-            if (gAlgoStatus.bit.ppsAvailable)
-            {
-                gKalmanFilter.nu[STATE_YAW] = gEKFInput.trueCourse * (real)DEG_TO_RAD -
-                                              gKalmanFilter.ppsEulerAngles[YAW];
-            }
-            else
-            {
-                gKalmanFilter.nu[STATE_YAW] = gEKFInput.trueCourse * (real)DEG_TO_RAD -
-                                              gKalmanFilter.eulerAngles[YAW];
-            }
+    if (rtkHeadingEnabled()) {
+        *source = HEADING_SOURCE_RTK;
+        gAlgoStatus.bit.usingRTKHeading = true;
+
+        if (gEKFInput.rtkHeading.valid) {
+            gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
+            *heading = gEKFInput.rtkHeading.heading;
+            *headingCov = computeRTKHeadingCovariance();
+            return true;
         }
-        else
-        {
-            gKalmanFilter.nu[STATE_YAW] = 0.0;
+        else if (!hasGoodRTKHeadingTimeout()) {
+            *heading = 0;
+            *headingCov = 1.0;
+            return false;
         }
-        
     }
-    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
+    gAlgoStatus.bit.usingRTKHeading = false;
+
+    if (magUsedInAlgorithm())
     {
-        gKalmanFilter.nu[STATE_YAW]   = gKalmanFilter.measuredEulerAngles[YAW] -
-                                        gKalmanFilter.eulerAngles[YAW];
+        // Adjust for declination if we have declination data
+        float declination = 0;
+        if( gWorldMagModel.validSoln )
+        {
+            declination = gWorldMagModel.decl_rad;
+            *source = HEADING_SOURCE_MAG_GEOGRAPHIC;
+        }
+        else {
+            *source = HEADING_SOURCE_MAG_MAGNETIC;
+        }
+
+        *heading = gKalmanFilter.measuredEulerAngles[YAW] + declination;
+        *headingCov = computeMagHeadingCovariance();
+        return true;
     }
-    else 
+    else
     {
-        gKalmanFilter.nu[STATE_YAW] = (real)0.0;
+        *heading = 0;
+        *headingCov = 1.0;
+        *source = HEADING_SOURCE_NONE;
+        return false;
     }
+}
+
+static void ComputeSystemInnovation_Att_Yaw()
+{
+    if (gAlgorithm.headingSource == HEADING_SOURCE_NONE) {
+        gKalmanFilter.nu[STATE_YAW] = 0;
+        return;
+    }
+
+    if (gAlgoStatus.bit.ppsAvailable)
+    {
+        gKalmanFilter.nu[STATE_YAW] = gAlgorithm.heading - gKalmanFilter.ppsEulerAngles[YAW];
+    }
+    else
+    {
+        gKalmanFilter.nu[STATE_YAW] = gAlgorithm.heading - gKalmanFilter.eulerAngles[YAW];
+    }
+
     gKalmanFilter.nu[STATE_YAW] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_YAW]);
     gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], gAlgorithm.Limit.Innov.attitudeError);
 }
@@ -361,14 +343,6 @@ void ComputeSystemInnovation_Att(void)
                                     gKalmanFilter.eulerAngles[PITCH];
     gKalmanFilter.nu[STATE_PITCH] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_PITCH]);
     gKalmanFilter.nu[STATE_PITCH] = _LimitValue(gKalmanFilter.nu[STATE_PITCH], gAlgorithm.Limit.Innov.attitudeError);
-
-    if (updateHeading) {
-        ComputeSystemInnovation_Att_Yaw();
-    }
-    else {
-        gKalmanFilter.nu[STATE_YAW] = (real) 0.0;
-
-    }
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
      * attitude-errors used to update roll and pitch.
@@ -494,8 +468,6 @@ uint8_t _GenerateObservationJacobian_AHRS(void)
 
     return 1;
 }
-
-static void _GenerateObservationCovariance_AHRS_Yaw();
 
 void _GenerateObservationCovariance_AHRS(void)
 {
@@ -623,106 +595,50 @@ void _GenerateObservationCovariance_AHRS(void)
         gKalmanFilter.R[STATE_PITCH] = maxR;
     }
 
-    if (updateHeading) {
-        _GenerateObservationCovariance_AHRS_Yaw();
+    gKalmanFilter.R[STATE_YAW] = gAlgorithm.headingCovariance;
+}
+
+static float computeRTKHeadingCovariance()
+{
+    // Limit the covariance to 2 degrees
+    //
+    // This accounts to the complete lack of synchronization, which on a system
+    // like tupan means something that 2-3 degree of error.
+    if (gEKFInput.rtkHeading.headingAccuracy > 0.035) {
+        return gEKFInput.rtkHeading.headingAccuracy *
+            gEKFInput.rtkHeading.headingAccuracy;
     }
     else {
-        gKalmanFilter.R[STATE_YAW] = (real)1.0;
+        return 0.0013;
     }
 }
 
-static void _GenerateObservationCovariance_AHRS_Yaw()
-{
-    /* Yaw
-     * ------ From NovAtel's description of BESTVEL: ------
-     * Velocity (speed and direction) calculations are computed from either
-     * Doppler or carrier phase measurements rather than from pseudorange
-     * measurements. Typical speed accuracies are around 0.03m/s (0.07 mph,
-     * 0.06 knots).
-     *
-     * Direction accuracy is derived as a function of the vehicle speed. A
-     * simple approach would be to assume a worst case 0.03 m/s cross-track
-     * velocity that would yield a direction error function something like:
-     *
-     * d (speed) = tan-1(0.03/speed)
-     *
-     * For example, if you are flying in an airplane at a speed of 120 knots
-     * or 62 m/s, the approximate directional error will be:
-     *
-     * tan-1 (0.03/62) = 0.03 degrees
-     *
-     * Consider another example applicable to hiking at an average walking
-     * speed of 3 knots or 1.5 m/s. Using the same error function yields a
-     * direction error of about 1.15 degrees.
-     *
-     * You can see from both examples that a faster vehicle speed allows for a
-     * more accurate heading indication. As the vehicle slows down, the
-     * velocity information becomes less and less accurate. If the vehicle is
-     * stopped, a GNSS receiver still outputs some kind of movement at speeds
-     * between 0 and 0.5 m/s in random and changing directions. This
-     * represents the noise and error of the static position.
-
-     * ----- Yaw -----
-     * CHANGED TO SWITCH BETWEEN GPS AND MAG UPDATES
+static float computeMagHeadingCovariance() {
+    /* For 'large' roll/pitch angles, increase R-yaw to decrease the effect
+     * of update due to potential uncompensated z-axis magnetometer
+     * readings from affecting the yaw-update.
      */
-    if (useRTKHeading) {
-        // Limit the covariance to 2 degrees
-        //
-        // This accounts to the complete lack of synchronization, which on a system
-        // like tupan means something that 2-3 degree of error.
-        if (gEKFInput.rtkHeading.headingAccuracy > 0.035) {
-            gKalmanFilter.R[STATE_YAW] = gEKFInput.rtkHeading.headingAccuracy *
-                gEKFInput.rtkHeading.headingAccuracy;
-        }
-        else {
-            gKalmanFilter.R[STATE_YAW] = 0.0013;
-        }
-    }
-    else if ( useGpsHeading )
+    if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
+        ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
     {
-        float temp = (float)atan( 0.05 / gEKFInput.rawGroundSpeed );
-        gKalmanFilter.R[STATE_YAW] = temp * temp;
-        if (gAlgoStatus.bit.turnSwitch)
-        {
-            gKalmanFilter.R[STATE_YAW] *= 10.0;
-        }
+        return (real)0.2;
     }
-    else if ( magUsedInAlgorithm() && (!gAlgorithm.velocityAlwaysAlongBodyX || gAlgorithm.state <= LOW_GAIN_AHRS) )
-    {
-        // todo: need to further distinguish between if mag is used
-        // MAGNETOMETERS
-        if( (gAlgorithm.state == HIGH_GAIN_AHRS) ||
-            (gAlgorithm.linAccelSwitch == TRUE) )
-        {
-            // --- High-Gain ---
-            gKalmanFilter.R[STATE_YAW] = (real)1.0e-2;  // jun4
-        } else {
-            // --- Low-Gain ---
-            gKalmanFilter.R[STATE_YAW]   = (real)1.0e-1; // v14.6 values
-        }
 
-        /* For 'large' roll/pitch angles, increase R-yaw to decrease the effect
-         * of update due to potential uncompensated z-axis magnetometer
-         * readings from affecting the yaw-update.
-         */
-        if( ( gKalmanFilter.eulerAngles[ROLL]  > TEN_DEGREES_IN_RAD ) ||
-            ( gKalmanFilter.eulerAngles[PITCH] > TEN_DEGREES_IN_RAD ) )
-        {
-            gKalmanFilter.R[STATE_YAW] = (real)0.2;
-        }
-    }
-    else
+    if ((gAlgorithm.state == HIGH_GAIN_AHRS) || gAlgorithm.linAccelSwitch)
     {
-        gKalmanFilter.R[STATE_YAW] = (real)1.0;
+        // --- High-Gain ---
+        return (real)1.0e-2;  // jun4
+    } else {
+        // --- Low-Gain ---
+        return (real)1.0e-1; // v14.6 values
     }
 }
 
-// 
 void _GenerateObservationCovariance_INS(void)
 {
     // Only need to compute certain elements of R once
     static BOOL initR = TRUE;
-    if (initR) 
+    if (initR)
     {
         initR = FALSE;
 
@@ -752,12 +668,13 @@ void _GenerateObservationCovariance_INS(void)
     {
         temp *= (1.0f + absFilteredYawRate);
     }
+    temp *= temp;
     gKalmanFilter.R[STATE_VX] = temp;// *((real)1.0 + fabs(gAlgorithm.filteredYawRate) * (real)RAD_TO_DEG);
-    gKalmanFilter.R[STATE_VX] = gKalmanFilter.R[STATE_VX] * gKalmanFilter.R[STATE_VX];
-    gKalmanFilter.R[STATE_VY] = gKalmanFilter.R[STATE_VX];
-    if (!magUsedInAlgorithm() && gAlgorithm.headingIni == HEADING_UNINITIALIZED)
+    gKalmanFilter.R[STATE_VY] = temp;
+
+    if (gAlgorithm.headingSource == HEADING_SOURCE_NONE)
     {
-        /* When heading is not initialized, velocity measurement is not able to correct 
+        /* When heading is not initialized, velocity measurement is not able to correct
          * attitude/rate bias/accel bias, the larger the velocity, the more uncertain it is.
          */
         gKalmanFilter.R[STATE_VX] += SQUARE(gEKFInput.vNed[0]) + SQUARE(gEKFInput.vNed[1]);
@@ -1282,23 +1199,37 @@ static void Update_GPS(void)
     Update_Pos();
     ComputeSystemInnovation_Vel();
     Update_Vel();
+
+    bool updateHeading = Update_Heading();
+    if (updateHeading) {
+        ComputeSystemInnovation_Att_Yaw();
+    }
+    else {
+        gKalmanFilter.nu[STATE_YAW] = (real) 0.0;
+        gAlgorithm.headingCovariance = (real) 1.0;
+    }
+
     ComputeSystemInnovation_Att();
+}
 
-    if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
-    {
-        if (InitializeHeadingFromGnss())
-        {
-            float heading, cov;
-            computeHeadingFromGps(&heading, &cov);
-            // Heading is initialized. Related elements in the EKF also need intializing.
-            InitializeEkfHeading(heading, cov);
+static bool Update_Heading() {
+    HeadingSource source;
+    float heading;
+    float headingCov;
 
-            /* This heading measurement is used to initialize heading, and should not be
-             * used to update heading.
-             */
-            useGpsHeading = FALSE;
+    bool updateHeading = computeHeading(&source, &heading, &headingCov);
+
+    if (gAlgorithm.headingSource != source) {
+        if (initializeEkfHeading(heading, headingCov)) {
+            updateHeading = false;
+            gAlgorithm.headingSource = source;
         }
     }
+
+    // Pass the covariance to the second stage of the update
+    gAlgorithm.heading = heading;
+    gAlgorithm.headingCovariance = headingCov;
+    return updateHeading;
 }
 
 static void Update_PseudoMeasurement(void)
@@ -1744,167 +1675,7 @@ static BOOL _CheckForUpdateTrigger(uint8_t updateRate)
     return updateFlag;
 }
 
-static int InitializeHeadingFromGnss()
-{
-    /* enable declination correction, but the corrected magnetic yaw will not
-     * be used if GPS is available.
-     */
-    gAlgorithm.applyDeclFlag = TRUE;
-
-    /* backward drive detection for heading initialization using GNSS heading.
-     * Detection happends every second. Velocity increment is relatively reliable
-     * if it is accumulated for 1sec.
-     */
-    static real lastVelBxGnss = 0;
-    static uint8_t forwardDriveConfidence = 0;
-    static uint32_t lastTOW = 0;
-    uint32_t timeSinceLastDetection = gAlgorithm.itow - lastTOW;
-    if (timeSinceLastDetection < 0)
-    {
-        timeSinceLastDetection = timeSinceLastDetection + MAX_ITOW;
-    }
-    if (timeSinceLastDetection > 950)   // 950ms is set as the threshold for 1sec
-    {
-        lastTOW = gAlgorithm.itow;
-        /* assume velocity is always along the body x axis. otherwise, GNSS heading
-         * cannot be used to initialize fusion heading
-         */
-        real velBx = sqrtf(SQUARE(gEKFInput.vNed[0]) + SQUARE(gEKFInput.vNed[1]) + SQUARE(gEKFInput.vNed[2]));
-        velBx = fabs(velBx);
-        real dv = velBx - lastVelBxGnss;
-        if ((dv * gKalmanFilter.linearAccel_B[X_AXIS]) > 0.0 && fabs(gKalmanFilter.linearAccel_B[X_AXIS]) > 0.2)
-        {
-            if (forwardDriveConfidence < 255)
-            {
-                forwardDriveConfidence++;
-            }
-        }
-        else
-        {
-            forwardDriveConfidence = 0;
-        }
-        // record this velocity along body x axis for next run
-        lastVelBxGnss = velBx;
-        // reset accumulated x body axis velocity change.
-        gKalmanFilter.linearAccel_B[X_AXIS] = 0.0;
-    }
-
-    // detect if GNSS heading is reliable
-    static uint8_t gnssHeadingGoodCntr = 0;
-    static float lastGnssHeading = 0.0;
-    static float lastFusionHeading = 0.0;
-    BOOL gnssHeadingGood = 0;
-    float angleDiff = 0.0;
-    if (useGpsHeading)
-    {
-        float calculatedGnssHeading  = (float)(atan2(gEKFInput.vNed[1], gEKFInput.vNed[0]) * R2D);
-        float diffHeading = AngleErrDeg(gEKFInput.trueCourse - calculatedGnssHeading);
-        // input GNSS heading matches heading calculated from vNED
-        if (fabs(diffHeading) < 5.0)
-        {
-            // GNSS heading change matches fusion yaw angle
-            float gnssHeadingChange = gEKFInput.trueCourse - lastGnssHeading;
-            float fusionHeadingChange = gKalmanFilter.eulerAngles[2] * (float)R2D - lastFusionHeading;
-            angleDiff = (float)fabs( AngleErrDeg(gnssHeadingChange - fusionHeadingChange) );
-            if (angleDiff < 5.0)
-            {
-                gnssHeadingGood = TRUE;
-            }
-        }
-        lastGnssHeading = gEKFInput.trueCourse;
-        lastFusionHeading = gKalmanFilter.eulerAngles[2] * (float)R2D;
-    }
-    if (gnssHeadingGood)
-    {
-        gnssHeadingGoodCntr++;
-    }
-    else
-    {    
-        gnssHeadingGoodCntr = 0;
-    }
-    
-    // Heading initialization when drive forward and GNSS heading is reliable
-    BOOL thisHeadingUsedForIni = FALSE;
-    if (gAlgorithm.headingIni < HEADING_GNSS_LOW)   // heading is immediately but maybe unreliably initialized
-    {
-        if (gnssHeadingGoodCntr >= 1 && forwardDriveConfidence >= 1)   // Only one sample is checked, so heading may be unreliable
-        {
-            gnssHeadingGoodCntr = 0;
-            // Heading is initialized with GNSS
-            gAlgorithm.headingIni = HEADING_GNSS_LOW;
-
-#ifdef INS_OFFLINE
-            printf("quick gps heading: %f\n", gEKFInput.trueCourse);
-#else
-#ifdef DISPLAY_DIAGNOSTIC_MSG
-            DebugPrintString("quick gps heading");
-            DebugPrintFloat(": ", gEKFInput.trueCourse, 9);
-            DebugPrintEndline();
-#endif
-#endif
-            thisHeadingUsedForIni = TRUE;
-        }
-    }
-    else
-    {
-        /* Three points are checked, and the latest ground speed is above a certian threshold.
-         * The latest GNSS heading should be reliable.
-         */
-        if (gnssHeadingGoodCntr >= 3 && 
-            forwardDriveConfidence >= 5 && 
-            gEKFInput.rawGroundSpeed > RELIABLE_GPS_VELOCITY_HEADING)
-        {
-            gnssHeadingGoodCntr = 0;
-            forwardDriveConfidence = 0;
-            gAlgorithm.headingIni = HEADING_GNSS_HIGH;
-#ifdef INS_OFFLINE
-            printf("reliable gps heading: %f\n", gEKFInput.trueCourse);
-#else
-#ifdef DISPLAY_DIAGNOSTIC_MSG
-            DebugPrintString("reliable gps heading");
-            DebugPrintFloat(": ", gEKFInput.trueCourse, 9);
-            DebugPrintEndline();
-#endif
-#endif
-            thisHeadingUsedForIni = TRUE;
-        }
-    }
-
-    return thisHeadingUsedForIni;
-}
-
-static int InitializeHeadingFromRTK()
-{
-    /* enable declination correction, but the corrected magnetic yaw will not
-     * be used if GPS is available.
-     */
-    gAlgorithm.applyDeclFlag = TRUE;
-
-    if (useRTKHeading) {
-        gAlgorithm.headingIni = HEADING_RTK;
-        return true;
-    }
-
-    return false;
-}
-
-static void computeHeadingFromGps(float* heading, float* covariance)
-{
-    *heading = gEKFInput.trueCourse * D2R;
-
-    // the initial covariance of the quaternion is estimated from ground speed.
-    float temp = (float)atan(0.05 / gEKFInput.rawGroundSpeed);
-    temp *= temp;   // heading var
-    if (gAlgoStatus.bit.turnSwitch)
-    {
-        temp *= 10.0;   // when rotating, heading var increases
-    }
-    temp /= 4.0;        // sin(heading/2) or cos(heading/2)
-
-    *covariance = temp;
-}
-
-static void InitializeEkfHeading(float headingMeasurement, float headingMeasurementCov)
+static bool initializeEkfHeading(float headingMeasurement, float headingMeasurementCov)
 {
     /* Compare the reliable heading with Kalamn filter heading. If the difference exceeds
      * a certain threshold, this means the immediate heading initialization is unreliable,
@@ -1914,18 +1685,8 @@ static void InitializeEkfHeading(float headingMeasurement, float headingMeasurem
                                               gKalmanFilter.eulerAngles[2])));
     if (angleDiff <= 2.0)
     {
-        return;
+        return false;
     }
-
-#ifdef INS_OFFLINE
-        printf("Reinitialize KF: %f\n", angleDiff);
-#else
-#ifdef DISPLAY_DIAGNOSTIC_MSG
-        DebugPrintString("Reinitialize KF: ");
-        DebugPrintFloat("", angleDiff, 9);
-        DebugPrintEndline();
-#endif
-#endif
 
     // initialize yaw angle with GPS heading
     gKalmanFilter.eulerAngles[YAW] = headingMeasurement;
@@ -1945,7 +1706,6 @@ static void InitializeEkfHeading(float headingMeasurement, float headingMeasurem
     gKalmanFilter.Velocity_N[Y_AXIS] = (real)gEKFInput.vNed[Y_AXIS];
     gKalmanFilter.Velocity_N[Z_AXIS] = (real)gEKFInput.vNed[Z_AXIS];
 
-#if 1   // mod, DXG
     // reset quaternion and velocity terms in the P matrix
     int i, j;
     // pos row
@@ -2007,38 +1767,7 @@ static void InitializeEkfHeading(float headingMeasurement, float headingMeasurem
     gKalmanFilter.P[STATE_VY][STATE_VY] = gKalmanFilter.R[STATE_VY];
     gKalmanFilter.P[STATE_VZ][STATE_VZ] = gKalmanFilter.R[STATE_VZ];
 
-#if 0
-    // reset velocity and quaternion terms in the P matrix
-    real v2 = gEKFInput.rawGroundSpeed * gEKFInput.rawGroundSpeed;
-    real v3by4 = 4.0 * v2 * gEKFInput.rawGroundSpeed;
-    real vn2 = gEKFInput.vNed[0] * gEKFInput.vNed[0];
-    real q0q0 = gKalmanFilter.quaternion[0] * gKalmanFilter.quaternion[0];
-    real q3q3 = gKalmanFilter.quaternion[3] * gKalmanFilter.quaternion[3];
-    if (q0q0 < 1.0e-3)
-    {
-        q0q0 = 1.0e-3;
-    }
-    if (q3q3 < 1.0e-3)
-    {
-        q3q3 = 1.0e-3;
-    }
-    real multiplerQVn = (v2 - vn2) / v3by4;
-    multiplerQVn *= multiplerQVn;
-    real multiplerQVe = (gEKFInput.vNed[0] * gEKFInput.vNed[1]) / v3by4;
-    multiplerQVe *= multiplerQVe;
-    gKalmanFilter.P[STATE_VX][STATE_Q0] = multiplerQVn / q0q0 * gKalmanFilter.R[STATE_VX][STATE_VX];
-    gKalmanFilter.P[STATE_VX][STATE_Q3] = multiplerQVn / q3q3 * gKalmanFilter.R[STATE_VX][STATE_VX];
-    gKalmanFilter.P[STATE_VY][STATE_Q0] = multiplerQVe / q0q0 * gKalmanFilter.R[STATE_VY][STATE_VY];
-    gKalmanFilter.P[STATE_VY][STATE_Q3] = multiplerQVe / q3q3 * gKalmanFilter.R[STATE_VY][STATE_VY];
-
-
-    gKalmanFilter.P[STATE_Q0][STATE_VX] = gKalmanFilter.P[STATE_VX][STATE_Q0];
-    gKalmanFilter.P[STATE_Q3][STATE_VX] = gKalmanFilter.P[STATE_VX][STATE_Q3];
-    gKalmanFilter.P[STATE_Q0][STATE_VY] = gKalmanFilter.P[STATE_VY][STATE_Q0];
-    gKalmanFilter.P[STATE_Q3][STATE_VY] = gKalmanFilter.P[STATE_VY][STATE_Q3];
-#endif
-
-#endif
+    return true;
 }
 
 static void ApplyGpsDealyCorrForStateCov()

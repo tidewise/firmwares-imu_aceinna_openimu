@@ -171,6 +171,13 @@ typedef struct
                                      */
 } STATIC_DETECT_SETTING;
 
+typedef enum
+{
+    HEADING_SOURCE_NONE,
+    HEADING_SOURCE_MAG_MAGNETIC,
+    HEADING_SOURCE_MAG_GEOGRAPHIC,
+    HEADING_SOURCE_RTK
+} HeadingSource;
 
 /* Global Algorithm structure  */
 typedef struct {
@@ -182,8 +189,9 @@ typedef struct {
     uint8_t     state;			// takes values from HARDWARE_STABILIZE to INIT_ATTITUDE to HG_AHRS
 
     uint8_t insFirstTime;
-    uint8_t headingIni;
-    uint8_t applyDeclFlag;
+    HeadingSource headingSource;
+    float heading;
+    float headingCovariance;
 
     int32_t timeOfLastSufficientGPSVelocity;
     int32_t timeOfLastGoodGPSReading;
