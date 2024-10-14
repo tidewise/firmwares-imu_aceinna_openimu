@@ -76,7 +76,7 @@ typedef unsigned char BOOL;
 #define  ACCEL_DUE_TO_GRAV  9.794259
 #define  g_TO_M_SEC_SQ  9.80655
 
-#define  MAX_ITOW  604800000    // Second in a week (assuming exactly 24 hours in a day)
+#define  MAX_ITOW  604800000    // Milliseconds in a week (assuming exactly 24 hours in a day)
 
 // PI and related values
 #define  TWO_PI        6.283185307179586

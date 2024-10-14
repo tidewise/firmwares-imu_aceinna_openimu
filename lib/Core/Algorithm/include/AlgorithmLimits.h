@@ -44,8 +44,9 @@ limitations under the License.
 #define LIMIT_OBS_JACOBIAN_DENOM    1e-3;
 
 // The following times are compared against ITOW (units in [msec])
-#define LIMIT_MAX_GPS_DROP_TIME                     300      // [sec]
+#define LIMIT_MAX_GPS_DROP_TIME                     30      // [sec]
 #define LIMIT_RELIABLE_DR_TIME                      10      // [sec]
+#define LIMIT_RELIABLE_RTK_HEADING_TIME             10      // [sec]
 #define LIMIT_MAX_REST_TIME_BEFORE_DROP_TO_AHRS     60000   // 60000 [ msec ] = 60 [ sec ]
 #define LIMIT_MAX_REST_TIME_BEFORE_HEADING_INVALID  120000  // 120sec, heading drifts much slower than pos
 #define LIMIT_DECL_EXPIRATION_TIME                  60000  // 60,000 [ counts ] = 10 [ min ]

@@ -112,6 +112,9 @@ static BOOL useGpsHeading = 0;  /* When GPS velocity is above a certain threshol
 
 static BOOL useRTKHeading = 0;
 
+/** Whether the next INS update state should update heading */
+static BOOL updateHeading = true;
+
 static int runInsUpdate = 0;    /* To enable the update to be broken up into
                                  * two sequential calculations in two sucessive
                                  * 100 Hz periods.
@@ -133,6 +136,10 @@ void EKF_UpdateStage(void)
      */
     if( gAlgorithm.state <= LOW_GAIN_AHRS )
     {
+        updateHeading = true;
+        useRTKHeading = false;
+        useGpsHeading = false;
+
         // Only allow the algorithm to be called on 100 Hz marks
         if(timer.oneHundredHertzFlag == 1) 
         {
@@ -158,6 +165,8 @@ void EKF_UpdateStage(void)
          */
         if( gEKFInput.gpsUpdate )
         {
+            updateHeading = true;
+
             /* Sync the algorithm itow to the GPS value. GPS time is the time of pps.
              * It is delayed by (gAlgorithm.itow-gEKFInput.itow). If there is loss of
              * PPS detection or GPS measuremetn, gEKFInput.itow equals gKalmanFilter.ppsITow.
@@ -194,22 +203,24 @@ void EKF_UpdateStage(void)
                 gAlgoStatus.bit.gpsHeadingValid = (gEKFInput.rawGroundSpeed >= LIMIT_MIN_GPS_VELOCITY_HEADING);
                 useGpsHeading = gAlgoStatus.bit.gpsHeadingValid && gAlgorithm.velocityAlwaysAlongBodyX;
 
-                useRTKHeading = !isnan(gAlgorithm.rtkHeading2magHeading) && gEKFInput.rtkHeading.valid;
-                gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
+                useRTKHeading = rtkHeadingEnabled() && gEKFInput.rtkHeading.valid;
+                if (gEKFInput.rtkHeading.valid) {
+                    gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
+                }
+
+                /* Do not apply heading updates if the RTK heading feature is enabled but
+                 * we do not have a valid RTK heading reading, unless we've timed out
+                 * in which case we'll update using magnetometers */
+                updateHeading =
+                    useRTKHeading ||
+                    (rtkHeadingEnabled() && hasGoodRTKHeadingTimeout());
+
                 /* If GNSS outage is longer than a threshold (maxReliableDRTime), DR results get unreliable
                  * So, when GNSS comes back, the EKF is reinitialized. Otherwise, the DR results are still
                  * good, just correct the filter states with input GNSS measurement.
                  */
-                int32_t timeSinceLastGoodGPSReading = (int32_t)gAlgorithm.itow - gAlgorithm.timeOfLastGoodGPSReading;
-                if (timeSinceLastGoodGPSReading < 0) 
+                if (hasGoodGPSReadingTimeout())
                 {
-                    timeSinceLastGoodGPSReading = timeSinceLastGoodGPSReading + MAX_ITOW;
-                }
-                if (timeSinceLastGoodGPSReading > gAlgorithm.Limit.maxReliableDRTime)
-                {
-#ifdef INS_OFFLINE
-                    printf("GPS relocked.\n");
-#endif // INS_OFFLINE
                     // Since a relative long time has passed since DR begins, INS states need reinitialized.
                     InitINSFilter();
                 }
@@ -243,6 +254,8 @@ void EKF_UpdateStage(void)
             }
         }
     }
+
+    gAlgoStatus.bit.usingRTKHeading = useRTKHeading;
 }
 
 // ----Compute the innovation vector, nu----
@@ -290,35 +303,13 @@ void ComputeSystemInnovation_Vel(void)
     gKalmanFilter.nu[STATE_VZ] = _LimitValue(gKalmanFilter.nu[STATE_VZ], gAlgorithm.Limit.Innov.velocityError);
 }
 
-
-/* Compute the innovation, nu, between measured and predicted attitude.
- *   Correct for wrap-around. Then limit the error.
- */
-void ComputeSystemInnovation_Att(void)
+static void ComputeSystemInnovation_Att_Yaw(void)
 {
-    // ----- Roll -----
-    gKalmanFilter.nu[STATE_ROLL]  = gKalmanFilter.measuredEulerAngles[ROLL] -
-                                    gKalmanFilter.eulerAngles[ROLL];
-    gKalmanFilter.nu[STATE_ROLL]  = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_ROLL]);
-    gKalmanFilter.nu[STATE_ROLL] = _LimitValue(gKalmanFilter.nu[STATE_ROLL], gAlgorithm.Limit.Innov.attitudeError);
-
-    // ----- Pitch -----
-    gKalmanFilter.nu[STATE_PITCH] = gKalmanFilter.measuredEulerAngles[PITCH] -
-                                    gKalmanFilter.eulerAngles[PITCH];
-    gKalmanFilter.nu[STATE_PITCH] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_PITCH]);
-    gKalmanFilter.nu[STATE_PITCH] = _LimitValue(gKalmanFilter.nu[STATE_PITCH], gAlgorithm.Limit.Innov.attitudeError);
-
     // ----- Yaw -----
     // CHANGED TO SWITCH BETWEEN GPS AND MAG UPDATES
     if (useRTKHeading) {
-        if (gAlgorithm.headingIni >= HEADING_RTK) {
-            gKalmanFilter.nu[STATE_YAW] = gEKFInput.rtkHeading.heading -
-                gKalmanFilter.eulerAngles[YAW];
-        }
-        else
-        {
-            gKalmanFilter.nu[STATE_YAW] = (real) 0.0;
-        }
+        gKalmanFilter.nu[STATE_YAW] = gEKFInput.rtkHeading.heading -
+            gKalmanFilter.eulerAngles[YAW];
     }
     else if ( useGpsHeading )
     {
@@ -352,6 +343,32 @@ void ComputeSystemInnovation_Att(void)
     }
     gKalmanFilter.nu[STATE_YAW] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_YAW]);
     gKalmanFilter.nu[STATE_YAW] = _LimitValue(gKalmanFilter.nu[STATE_YAW], gAlgorithm.Limit.Innov.attitudeError);
+}
+
+/* Compute the innovation, nu, between measured and predicted attitude.
+ *   Correct for wrap-around. Then limit the error.
+ */
+void ComputeSystemInnovation_Att(void)
+{
+    // ----- Roll -----
+    gKalmanFilter.nu[STATE_ROLL]  = gKalmanFilter.measuredEulerAngles[ROLL] -
+                                    gKalmanFilter.eulerAngles[ROLL];
+    gKalmanFilter.nu[STATE_ROLL]  = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_ROLL]);
+    gKalmanFilter.nu[STATE_ROLL] = _LimitValue(gKalmanFilter.nu[STATE_ROLL], gAlgorithm.Limit.Innov.attitudeError);
+
+    // ----- Pitch -----
+    gKalmanFilter.nu[STATE_PITCH] = gKalmanFilter.measuredEulerAngles[PITCH] -
+                                    gKalmanFilter.eulerAngles[PITCH];
+    gKalmanFilter.nu[STATE_PITCH] = _UnwrapAttitudeError(gKalmanFilter.nu[STATE_PITCH]);
+    gKalmanFilter.nu[STATE_PITCH] = _LimitValue(gKalmanFilter.nu[STATE_PITCH], gAlgorithm.Limit.Innov.attitudeError);
+
+    if (updateHeading) {
+        ComputeSystemInnovation_Att_Yaw();
+    }
+    else {
+        gKalmanFilter.nu[STATE_YAW] = (real) 0.0;
+
+    }
 
     /* When the filtered yaw-rate is above certain thresholds then reduce the
      * attitude-errors used to update roll and pitch.
@@ -478,8 +495,8 @@ uint8_t _GenerateObservationJacobian_AHRS(void)
     return 1;
 }
 
+static void _GenerateObservationCovariance_AHRS_Yaw();
 
-// 
 void _GenerateObservationCovariance_AHRS(void)
 {
     static real Rnom;
@@ -606,6 +623,16 @@ void _GenerateObservationCovariance_AHRS(void)
         gKalmanFilter.R[STATE_PITCH] = maxR;
     }
 
+    if (updateHeading) {
+        _GenerateObservationCovariance_AHRS_Yaw();
+    }
+    else {
+        gKalmanFilter.R[STATE_YAW] = (real)1.0;
+    }
+}
+
+static void _GenerateObservationCovariance_AHRS_Yaw()
+{
     /* Yaw
      * ------ From NovAtel's description of BESTVEL: ------
      * Velocity (speed and direction) calculations are computed from either
@@ -1248,7 +1275,6 @@ static void Update_GPS(void)
     Update_Vel();
     ComputeSystemInnovation_Att();
 
-    // Initialize heading. If getting initial heading at this step, do not update att
     if (gAlgorithm.velocityAlwaysAlongBodyX && gAlgorithm.headingIni < HEADING_GNSS_HIGH)
     {
         if (InitializeHeadingFromGnss())
@@ -1262,19 +1288,6 @@ static void Update_GPS(void)
              * used to update heading.
              */
             useGpsHeading = FALSE;
-        }
-    }
-
-    if(!isnan(gAlgorithm.rtkHeading2magHeading) && gAlgorithm.headingIni < HEADING_RTK){
-        if(InitializeHeadingFromRTK()){
-            // Heading is initialized. Related elements in the EKF also need intializing.
-            InitializeEkfHeading(gEKFInput.rtkHeading.heading,
-                                 gEKFInput.rtkHeading.headingAccuracy);
-
-            /* This heading measurement is used to initialize heading, and should not be
-             * used to update heading.
-             */
-            useRTKHeading = FALSE;
         }
     }
 }

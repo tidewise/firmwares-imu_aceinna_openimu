@@ -48,6 +48,14 @@ void InitializeAlgorithmStruct(uint8_t callingFreq);
 ******************************************************************************/
 void GetAlgoStatus(AlgoStatus *algoStatus);
 
+int32_t getTimeSinceLastGoodGPSReading();
+
+bool hasGoodGPSReadingTimeout();
+
+int32_t getTimeSinceLastGoodRTKHeading();
+
+bool hasGoodRTKHeadingTimeout();
+
 void setAlgorithmStateStabilizeSystem();
 
 uint16_t getAlgorithmCounter();
@@ -112,5 +120,7 @@ void setPointOfInterest( real poiBx, real poiBy, real poiBz );
  * @param [in] rtkHeading2magHeading: the offset in radians
  ****************************************************************************/
 void setRTKHeading2MAGHeading(real rtkHeading2magHeading);
+
+BOOL rtkHeadingEnabled();
 
 #endif

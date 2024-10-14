@@ -144,7 +144,7 @@ void inertialAndPositionDataProcessing(uint16_t dacqRate)
         GetBoardTempData(&gIMU.temp_C);
 
         // Obtain GPS data (lat/lon: deg, alt: meters, vel: m/s, ITOW: msec, )
-        GetGPSData(&gGPS);
+        GetGPSData(&gGPS, rtkHeadingEnabled());
 
         // check if pps is detected right before this excution of the task.
         BOOL ppsDetected = platformGetPpsFlag(TRUE);
