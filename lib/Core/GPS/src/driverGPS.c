@@ -271,15 +271,13 @@ int writeGps(char  *data, uint16_t len)
 
 }
 
-void GetGPSData(gpsDataStruct_t *data, bool wantRelPosHeading)
+void GetGPSData(gpsDataStruct_t *data)
 {
     bool hasPosAndVelocityUpdate =
         (gGpsDataPtr->updateFlagForEachCall >> GOT_VTG_MSG) & 0x00000001 &&
         (gGpsDataPtr->updateFlagForEachCall >> GOT_GGA_MSG) & 0x00000001;
 
-    bool relPosHeadingUptodate = (gGpsDataPtr->itow == gGpsDataPtr->relPosHeadingITOW);
-    data->gpsUpdate =
-        hasPosAndVelocityUpdate && (!wantRelPosHeading || relPosHeadingUptodate);
+    data->gpsUpdate = hasPosAndVelocityUpdate;
 
     // gGpsDataPtr->updateFlagForEachCall &= 0xFFFFFFFD;
     if(data->gpsUpdate)
@@ -316,10 +314,16 @@ void GetGPSData(gpsDataStruct_t *data, bool wantRelPosHeading)
         data->GPSVertAcc        = gGpsDataPtr->GPSVertAcc;
         data->geoidAboveEllipsoid = gGpsDataPtr->geoidAboveEllipsoid;
 
-        data->rtkHeadingData.valid = gGpsData.relPosHeadingValid;
-        data->rtkHeadingData.itow = gGpsData.relPosHeadingITOW;
-        data->rtkHeadingData.heading = gGpsData.relPosHeading;
-        data->rtkHeadingData.headingAccuracy = gGpsData.relPosHeadingAccuracy;
+        bool relPosHeadingUptodate =
+            (gGpsDataPtr->itow == gGpsDataPtr->relPosHeadingITOW);
+        data->rtkHeadingData.new_data =
+            gGpsData.relPosHeadingValid && relPosHeadingUptodate;
+        if(data->rtkHeadingData.new_data)
+        {
+            data->rtkHeadingData.itow = gGpsData.relPosHeadingITOW;
+            data->rtkHeadingData.heading = gGpsData.relPosHeading;
+            data->rtkHeadingData.headingAccuracy = gGpsData.relPosHeadingAccuracy;
+        }
     }
 }
 

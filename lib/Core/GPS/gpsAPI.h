@@ -55,7 +55,9 @@ void TaskGps(void const *argument);
 #define SIMULATION  8   // Simulation Mode (will be considered as INVALID)
 
 typedef struct {
-    uint8_t valid;
+    // new and valid data is available
+    uint8_t new_data;
+
     uint32_t itow;
     float   heading;
     float   headingAccuracy;
@@ -99,7 +101,7 @@ extern gpsDataStruct_t gGPS, gCanGps;
  * @param [in] data - pointer to external GPS structure
  * @retval N/A
  ******************************************************************************/
-void  GetGPSData(gpsDataStruct_t *data, bool wantRelPosHeading);
+void  GetGPSData(gpsDataStruct_t *data);
 BOOL  SetGpsBaudRate(int rate, int fApply);
 BOOL  SetGpsProtocol(int protocol, int fApply);
 

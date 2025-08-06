@@ -655,8 +655,8 @@ void EKF_SetInputStruct(double *accels, double *rates, double *mags,
                           &gKalmanFilter.rGPS_N[0]);
         }
 
-        gEKFInput.rtkHeading.valid = gps->rtkHeadingData.valid;
-        if (gEKFInput.rtkHeading.valid) {
+        gEKFInput.rtkHeading.new_data = gps->rtkHeadingData.new_data;
+        if (gEKFInput.rtkHeading.new_data) {
             gEKFInput.rtkHeading.heading = gps->rtkHeadingData.heading
                 + gAlgorithm.rtkHeading2magHeading;
             gEKFInput.rtkHeading.headingAccuracy = gps->rtkHeadingData.headingAccuracy;

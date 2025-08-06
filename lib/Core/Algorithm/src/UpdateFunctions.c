@@ -267,7 +267,7 @@ static bool computeHeading(HeadingSource* source, float* heading, float* heading
         *source = HEADING_SOURCE_RTK;
         gAlgoStatus.bit.usingRTKHeading = true;
 
-        if (gEKFInput.rtkHeading.valid) {
+        if (gEKFInput.rtkHeading.new_data) {
             gAlgorithm.timeOfLastGoodRTKHeading = gEKFInput.itow;
             *heading = gEKFInput.rtkHeading.heading;
             *headingCov = computeRTKHeadingCovariance();
