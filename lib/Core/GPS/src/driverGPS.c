@@ -278,6 +278,13 @@ void GetGPSData(gpsDataStruct_t *data, bool wantRelPosHeading)
         (gGpsDataPtr->updateFlagForEachCall >> GOT_GGA_MSG) & 0x00000001;
 
     bool relPosHeadingUptodate = (gGpsDataPtr->itow == gGpsDataPtr->relPosHeadingITOW);
+    // When the RTK heading is enabled, we want to wait for both the PVT and RelPos
+    // messages to be received to process. The (verified) assumption is that the
+    // relposned message will be received with all field invalid if there is no
+    // RTCM messages received, or no proper RTK solution
+    //
+    // On the filter side, this means that the IMU will never switch to INS mode if
+    // the GPS is not sending both PVT and RELPOSNED.
     data->gpsUpdate =
         hasPosAndVelocityUpdate && (!wantRelPosHeading || relPosHeadingUptodate);
 
